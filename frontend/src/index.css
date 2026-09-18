@@ -12,11 +12,12 @@
   --warn-soft: #f3dcda;
   --font-sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono: 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
-  color-scheme: light dark;
+  color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
+    color-scheme: dark;
     --bg: #12141a;
     --surface: #1a1e27;
     --surface-alt: #222732;
@@ -32,6 +33,7 @@
 }
 
 :root[data-theme='dark'] {
+  color-scheme: dark;
   --bg: #12141a;
   --surface: #1a1e27;
   --surface-alt: #222732;
@@ -79,6 +81,14 @@ body {
   color: var(--ink);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+}
+
+button,
+select,
+input,
+textarea {
+  color: inherit;
+  font: inherit;
 }
 
 #root {
