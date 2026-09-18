@@ -1,7 +1,7 @@
-import { useState } from 'react';
-import type { AgentStatus, RepoDefinition } from '../types';
+import { useEffect, useState } from 'react';
+import type { AgentSession, AgentStatus, RepoDefinition } from '../types';
 import { avatarColor } from '../colors';
-import { assignAgent, unassignAgent } from '../api';
+import { assignAgent, fetchSessions, forceStopSession, unassignAgent } from '../api';
 import { SessionPanel } from './SessionPanel';
 import { StatusPill } from './StatusPill';
 
@@ -30,6 +30,28 @@ export function AgentCard({
   const [workOpen, setWorkOpen] = useState(false);
   const [reassignBusy, setReassignBusy] = useState(false);
   const [reassignError, setReassignError] = useState<string | null>(null);
+  const [runningSession, setRunningSession] = useState<AgentSession | null>(null);
+  const [stopBusy, setStopBusy] = useState(false);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    (async () => {
+      try {
+        const sessions = await fetchSessions(agent.id, controller.signal);
+        const latest = sessions[0];
+        if (latest?.status === 'Running') {
+          setRunningSession(latest);
+        }
+      } catch {
+        // Best effort - the card just won't show a running-session badge if this fails.
+      }
+    })();
+    return () => controller.abort();
+    // Only re-check when the agent identity changes - this is a point-in-time check, not a live
+    // poll, so a session started from elsewhere while this card is on screen won't appear until
+    // the next full page load. Open "Assign work" for a live-polled view of a specific session.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [agent.id]);
 
   async function handleReassign(repoId: string) {
     setReassignBusy(true);
@@ -48,6 +70,21 @@ export function AgentCard({
     }
   }
 
+  async function handleStopRunningSession() {
+    if (!runningSession) return;
+    setStopBusy(true);
+    try {
+      await forceStopSession(runningSession.id);
+      setRunningSession(null);
+    } catch (err) {
+      setReassignError(err instanceof Error ? err.message : 'Failed to stop session');
+    } finally {
+      setStopBusy(false);
+    }
+  }
+
+  const gitLooksBusy = !agent.error && (!agent.isClean || agent.aheadOfBase > 0);
+
   return (
     <div className="card">
       <div className="card-head">
@@ -58,12 +95,32 @@ export function AgentCard({
           <div className="card-name">{agent.name}</div>
           <div className="card-role">{agent.role}</div>
         </div>
-        <StatusPill agent={agent} />
+        <span
+          title={
+            gitLooksBusy && !runningSession
+              ? 'Reflects git status (uncommitted changes or commits ahead of base) - not necessarily a live process.'
+              : undefined
+          }
+        >
+          <StatusPill agent={agent} />
+        </span>
       </div>
 
       {agent.projectName && (
         <div className="project-chip-row">
           <span className="project-chip">{agent.projectName}</span>
+        </div>
+      )}
+
+      {runningSession && (
+        <div className="running-session-banner">
+          <span className="pill working">
+            <span className="dot" />
+            Session running
+          </span>
+          <button type="button" className="btn-danger" onClick={handleStopRunningSession} disabled={stopBusy}>
+            Stop
+          </button>
         </div>
       )}
 

@@ -734,6 +734,18 @@ h1 {
   margin-bottom: 8px;
 }
 
+.running-session-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: var(--surface-alt);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 12px;
+}
+
 .project-chip {
   display: inline-flex;
   align-items: center;
