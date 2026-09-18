@@ -136,7 +136,7 @@ export function DashboardPage({
                     <div className="project-agent-name">{agent.name}</div>
                     <div className="card-role">{agent.repoName ?? 'No repo'}</div>
                   </div>
-                  <StatusPill agent={agent} />
+                  <StatusPill agent={agent} running />
                   <button type="button" className="btn-danger" onClick={() => handleStop(agent.id)}>
                     Stop
                   </button>

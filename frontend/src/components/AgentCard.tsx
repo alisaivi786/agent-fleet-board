@@ -93,7 +93,7 @@ export function AgentCard({
           <div className="card-name">{agent.name}</div>
           <div className="card-role">{agent.role}</div>
         </div>
-        <StatusPill agent={agent} />
+        <StatusPill agent={agent} running={!!runningSession} />
       </div>
 
       {agent.projectName && (
