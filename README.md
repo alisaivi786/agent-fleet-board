@@ -60,7 +60,10 @@ curl -X POST http://localhost:5299/api/agents/<agent-id>/assign \
 
 `GET /api/agents` then shows live git status for Alice against that repo. `DELETE
 /api/repos/{id}` and `DELETE /api/agents/{id}` remove entries; `POST /api/agents/{id}/unassign`
-clears an assignment without deleting the agent.
+clears an assignment without deleting the agent. `POST /api/agents/{id}/prepare-prompt` (body
+`{"prompt": "..."}`) returns a ready-to-run `{"command": "cd \"...\" && claude \"...\""}` for an
+assigned agent — it only formats the string, nothing gets executed server-side. In the UI, this is
+the "Prompt" button on each agent card in the Roster tab.
 
 **4. Run the frontend:**
 
@@ -82,7 +85,8 @@ reachable as-is.
 
 ## Status
 
-This is a read-only status viewer today — it does not launch agents or send them work. That's a
-deliberate scope boundary for now, not a missing feature; a "create/dispatch an agent from the UI"
-control plane is a separate, larger piece of work. See [`docs/ROADMAP.md`](docs/ROADMAP.md) for the
-full plan, open questions, and phasing.
+Repos and agents are fully manageable through the UI, and the "Prompt" button prepares a
+copy-pasteable command for an assigned agent — but this tool still doesn't launch or supervise
+anything itself. That's a deliberate scope boundary, not a missing feature; a backend that actually
+spawns/supervises a Claude Code session is a separate, larger piece of work with its own security
+questions. See [`docs/ROADMAP.md`](docs/ROADMAP.md) for the full plan, open questions, and phasing.

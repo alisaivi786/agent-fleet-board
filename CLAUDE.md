@@ -146,13 +146,20 @@ repo — this dashboard's read-only view becomes one panel in a larger control p
 product. One decision already locked in: **agent-to-repo binding is assignable per task, not
 fixed** (no "Alice always does frontend").
 
-`docs/PHASE-2-BUILD-PLAN.md`'s Phase 1 (repo registry), Phase 2 (agent registry + assignment), and
-Phase 3 (registry management UI) are all **done** — see the Architecture section above. The
-backend has also since moved off the JSON-file registry that build plan originally specified and
-onto Postgres + a layered project structure (Domain/Persistence/Migrations/Api), by explicit
-request, not from the build plan itself — the plan's *endpoints and behavior* are still the spec;
-only the storage mechanism changed. Phase 4 (manual-launch/prepare-prompt bridge) and real dispatch
-(Phase 2c in `docs/ROADMAP.md`) are still not started.
+`docs/PHASE-2-BUILD-PLAN.md`'s Phase 1 (repo registry), Phase 2 (agent registry + assignment),
+Phase 3 (registry management UI), and Phase 4 (manual-launch/prepare-prompt bridge) are all
+**done** — see the Architecture section above. `POST /api/agents/{id}/prepare-prompt` formats a
+`cd "<path>" && claude "<prompt>"` command server-side from the registry-resolved path; it does not
+execute anything. The backend has also since moved off the JSON-file registry that build plan
+originally specified and onto Postgres + a layered project structure
+(Domain/Persistence/Migrations/Api), by explicit request, not from the build plan itself — the
+plan's *endpoints and behavior* are still the spec; only the storage mechanism changed.
 
-Do not start implementing further phases without asking the user to confirm scope —
-`docs/ROADMAP.md` is context to resume the conversation from, not a spec to build from silently.
+**Real dispatch (Phase 2c in `docs/ROADMAP.md`) is the only piece left, and it is explicitly gated
+on a conversation, not a green light to keep building.** `docs/ROADMAP.md`'s "open questions"
+section lists five genuinely unresolved decisions (how a session gets launched — subprocess vs.
+Agent SDK vs. staying a viewer; how logs stream to the UI; what "connect to repo" means; whether
+`/api/agents` merges into a bigger API; the security boundary once the client can trigger a real
+process) that the roadmap itself says not to guess at. This is the point where the tool's security
+model changes shape — a client-triggered subprocess spawn is a different risk class than anything
+built so far. Confirm scope with the user before writing any code for it.
