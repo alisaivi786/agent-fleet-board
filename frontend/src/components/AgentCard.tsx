@@ -112,7 +112,11 @@ export function AgentCard({ agent }: { agent: AgentStatus }) {
         </div>
       )}
 
-      {agent.repoPath && <div className="worktree-path">{agent.repoPath}</div>}
+      {agent.repoPath && (
+        <div className="worktree-path" title={agent.repoPath}>
+          {agent.repoPath}
+        </div>
+      )}
 
       {agent.changedFiles.length > 0 && (
         <div className="swap-strip">
@@ -133,7 +137,7 @@ export function AgentCard({ agent }: { agent: AgentStatus }) {
           disabled={!agent.repoId}
           title={agent.repoId ? undefined : 'Assign a repo first'}
         >
-          {promptOpen ? 'Cancel' : 'Prompt'}
+          {promptOpen ? 'Close' : 'Prompt'}
         </button>
         <button
           type="button"
@@ -142,7 +146,7 @@ export function AgentCard({ agent }: { agent: AgentStatus }) {
           disabled={!agent.repoId}
           title={agent.repoId ? undefined : 'Assign a repo first'}
         >
-          {runOpen ? 'Cancel' : 'Run'}
+          {runOpen ? 'Close' : 'Run'}
         </button>
       </div>
 

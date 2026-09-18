@@ -129,7 +129,10 @@ export function SessionPanel({ agentId, repoName }: { agentId: string; repoName:
             {session.exitCode !== null && <span className="session-exit-code">exit {session.exitCode}</span>}
           </div>
           {pollWarning && <div className="error-banner">{pollWarning}</div>}
-          <pre className="session-log">{log || '(no output yet)'}</pre>
+          <div className="session-log-frame">
+            <div className="session-log-titlebar">Log output</div>
+            <pre className="session-log">{log || '(no output yet)'}</pre>
+          </div>
         </div>
       )}
     </div>

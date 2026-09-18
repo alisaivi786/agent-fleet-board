@@ -49,6 +49,30 @@
   box-sizing: border-box;
 }
 
+/* Thin, subtle scrollbars everywhere instead of the default OS chrome. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--ink-dim);
+}
+
 body {
   margin: 0;
   background: var(--bg);
@@ -325,18 +349,23 @@ h1 {
   font-size: 0.72rem;
   color: var(--ink-dim);
   background: var(--surface-alt);
+  border: 1px solid var(--line);
   border-radius: 6px;
   padding: 6px 8px;
-  overflow-x: auto;
-  white-space: pre;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: rtl;
+  text-align: left;
+  cursor: default;
 }
 
 .swap-strip {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
   margin-top: 12px;
-  overflow-x: auto;
-  border-top: 1px dashed var(--line);
+  border-top: 1px solid var(--line);
   padding-top: 10px;
 }
 
@@ -451,7 +480,7 @@ h1 {
 .session-panel {
   margin-top: 12px;
   padding-top: 12px;
-  border-top: 1px dashed var(--line);
+  border-top: 1px solid var(--line);
 }
 
 .session-status {
@@ -468,19 +497,44 @@ h1 {
   font-family: var(--font-mono);
   font-size: 0.72rem;
   color: var(--ink-dim);
+  margin-left: auto;
+}
+
+.session-log-frame {
+  margin-top: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+  background: #10131a;
+}
+
+.session-log-titlebar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: var(--surface-alt);
+  border-bottom: 1px solid var(--line);
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
 }
 
 .session-log {
-  margin-top: 8px;
-  max-height: 220px;
+  max-height: 260px;
   overflow-y: auto;
-  background: var(--surface-alt);
-  border-radius: 8px;
-  padding: 8px 10px;
+  padding: 10px 12px;
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: 0.76rem;
+  line-height: 1.5;
   white-space: pre-wrap;
-  color: var(--ink);
+  word-break: break-word;
+  color: #d7dde8;
+}
+
+.session-log::-webkit-scrollbar-thumb {
+  background: #3a4152;
 }
 
 .tab-row {
