@@ -23,7 +23,9 @@ export function SessionPanel({ agentId, repoName }: { agentId: string; repoName:
   const [log, setLog] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [pollWarning, setPollWarning] = useState<string | null>(null);
   const sessionIdRef = useRef<string | null>(null);
+  const pollFailureCountRef = useRef(0);
 
   useEffect(() => {
     if (!session || session.status !== 'Running') {
@@ -40,9 +42,18 @@ export function SessionPanel({ agentId, repoName }: { agentId: string; repoName:
         if (sessionIdRef.current === session.id) {
           setSession(latest);
           setLog(logResult.log);
+          pollFailureCountRef.current = 0;
+          setPollWarning(null);
         }
-      } catch {
-        // Transient poll failure - next tick will retry.
+      } catch (err) {
+        // Transient poll failure - keep retrying, but let the user know if it's not clearing up.
+        if (controller.signal.aborted) return;
+        pollFailureCountRef.current += 1;
+        if (pollFailureCountRef.current >= 3) {
+          setPollWarning(
+            `Live status/log updates aren't coming through (${err instanceof Error ? err.message : 'unknown error'}). Still retrying...`,
+          );
+        }
       }
     }, POLL_INTERVAL_MS);
 
@@ -64,6 +75,8 @@ export function SessionPanel({ agentId, repoName }: { agentId: string; repoName:
 
     setBusy(true);
     setError(null);
+    setPollWarning(null);
+    pollFailureCountRef.current = 0;
     try {
       const started = await startSession(agentId, prompt);
       sessionIdRef.current = started.id;
@@ -115,6 +128,7 @@ export function SessionPanel({ agentId, repoName }: { agentId: string; repoName:
             )}
             {session.exitCode !== null && <span className="session-exit-code">exit {session.exitCode}</span>}
           </div>
+          {pollWarning && <div className="error-banner">{pollWarning}</div>}
           <pre className="session-log">{log || '(no output yet)'}</pre>
         </div>
       )}

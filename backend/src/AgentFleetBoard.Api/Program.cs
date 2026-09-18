@@ -181,7 +181,14 @@ app.MapGet("/api/sessions/{id:guid}/log", async (Guid id, ISessionRegistry sessi
     }
 
     // Small local tool, modest log sizes expected - read the whole file rather than tailing it.
-    string log = await File.ReadAllTextAsync(session.LogPath, cancellationToken);
+    // Explicit FileShare.ReadWrite to match SessionRunner's writer, which is still open while the
+    // session is Running - File.ReadAllTextAsync's default share mode isn't broad enough for that.
+    string log;
+    using (var stream = new FileStream(session.LogPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+    using (var reader = new StreamReader(stream))
+    {
+        log = await reader.ReadToEndAsync(cancellationToken);
+    }
     return Results.Ok(new { log });
 });
 

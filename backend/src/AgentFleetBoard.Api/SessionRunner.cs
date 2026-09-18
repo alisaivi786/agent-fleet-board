@@ -32,7 +32,11 @@ public sealed class SessionRunner(IServiceScopeFactory scopeFactory, ILogger<Ses
     public int Start(Guid sessionId, string repoPath, string prompt, string logPath)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(logPath)!);
-        var logWriter = new StreamWriter(logPath, append: false) { AutoFlush = true };
+        // FileShare.ReadWrite (not StreamWriter's default FileShare.Read) so the log-tail endpoint
+        // can open the same path for reading while this writer is still live - otherwise every
+        // poll during a running session hits a Win32 sharing-violation IOException.
+        var logStream = new FileStream(logPath, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
+        var logWriter = new StreamWriter(logStream) { AutoFlush = true };
 
         ProcessStartInfo startInfo = BuildStartInfo();
         startInfo.WorkingDirectory = repoPath;
