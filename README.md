@@ -15,32 +15,35 @@ background coding agent, a regular feature branch, a teammate's clone — anythi
 
 ## Running it locally
 
-**1. Configure your agents.** Copy the example and fill in real paths:
-
-```bash
-cp backend/appsettings.Local.json.example backend/appsettings.Local.json
-```
-
-Edit `backend/appsettings.Local.json`:
-
-```json
-{
-  "AgentFleet": {
-    "Agents": [
-      { "Name": "Alice", "Role": "Senior Software Engineer", "RepoPath": "C:\\path\\to\\repo", "BaseBranch": "develop" }
-    ]
-  }
-}
-```
-
-`appsettings.Local.json` is gitignored — your real filesystem paths never get committed.
-
-**2. Run the backend:**
+**1. Run the backend:**
 
 ```bash
 cd backend
 dotnet run --urls http://localhost:5299
 ```
+
+**2. Register a repo and an agent** through the API (persisted to `backend/data/repos.json` /
+`agents.json`, gitignored — your real filesystem paths never get committed):
+
+```bash
+curl -X POST http://localhost:5299/api/repos \
+  -H "Content-Type: application/json" \
+  -d '{"name":"my-repo","path":"C:\\path\\to\\repo","baseBranch":"develop"}'
+# -> { "id": "...", "name": "my-repo", ... }
+
+curl -X POST http://localhost:5299/api/agents \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Alice","role":"Senior Software Engineer"}'
+# -> { "id": "...", "name": "Alice", "assignedRepoId": null }
+
+curl -X POST http://localhost:5299/api/agents/<agent-id>/assign \
+  -H "Content-Type: application/json" \
+  -d '{"repoId":"<repo-id>"}'
+```
+
+`GET /api/agents` then shows live git status for Alice against that repo. `DELETE
+/api/repos/{id}` and `DELETE /api/agents/{id}` remove entries; `POST /api/agents/{id}/unassign`
+clears an assignment without deleting the agent.
 
 **3. Run the frontend:**
 

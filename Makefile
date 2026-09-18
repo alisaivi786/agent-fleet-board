@@ -1,28 +1,21 @@
-.PHONY: help install configure backend frontend dev build
+.PHONY: help install backend frontend dev build
 
 .DEFAULT_GOAL := help
 
 help:
 	@echo "Available commands:"
 	@echo "  make install     Install frontend dependencies (npm install)"
-	@echo "  make configure   First-time setup: create backend/appsettings.Local.json from the example"
 	@echo "  make backend     Run the .NET API in dev mode (http://localhost:5299)"
 	@echo "  make frontend    Run the Vite dev server (http://localhost:5173)"
 	@echo "  make dev         Run backend and frontend together (Ctrl+C stops both)"
 	@echo "  make build       Production build for backend and frontend"
+	@echo ""
+	@echo "Repos and agents are registered through the API (POST /api/repos, POST /api/agents)"
+	@echo "instead of a config file - see README.md."
 
 # Installs frontend dependencies (run once, or after pulling new deps)
 install:
 	cd frontend && npm install
-
-# Creates backend/appsettings.Local.json from the example if it doesn't exist yet
-configure:
-	@if [ -f backend/appsettings.Local.json ]; then \
-		echo "backend/appsettings.Local.json already exists - edit it directly to add/change agents."; \
-	else \
-		cp backend/appsettings.Local.json.example backend/appsettings.Local.json; \
-		echo "Created backend/appsettings.Local.json - edit it to point at your agent repos."; \
-	fi
 
 # Runs the .NET API on http://localhost:5299
 backend:

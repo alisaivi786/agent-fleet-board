@@ -1,9 +1,12 @@
 namespace AgentFleetBoard.Api.Models;
 
 public sealed record AgentStatus(
+    Guid Id,
     string Name,
     string Role,
-    string RepoPath,
+    Guid? RepoId,
+    string? RepoName,
+    string? RepoPath,
     string? Branch,
     bool PathExists,
     bool IsGitRepo,

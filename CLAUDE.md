@@ -10,40 +10,43 @@ per "agent persona" like Alice/Bob/Dua) — branch, last commit, ahead/behind a 
 uncommitted files — refreshed live. Built originally against `D:\Code\FMS-Prime`'s agent worktrees,
 but it is **not specific to that repo** — any agent name maps to any local git path you configure.
 
-**Current status: v1 is done and working.** It is a *read-only status viewer*. It does not launch
-agents, does not send them prompts, and does not know anything about Claude Code sessions. That is
-the deliberate scope boundary for v1 — see "Phase 2" below for what's next and still undecided.
+**Current status: v1 is done. Phase 1+2 of Phase 2 (repo/agent registry) is done on the backend.**
+Repos and agents are now persisted, API-managed entities (no more hand-edited config file), but
+there is still no launching, no prompts, and no Claude Code session awareness — the frontend also
+hasn't been updated for the registry yet (still Phase 3, not built). See "Phase 2" below for what's
+still undecided.
 
 ## Architecture
 
 ```
 agent-fleet-board/
-  backend/    .NET 10 minimal API — GET /api/agents
-  frontend/   React + Vite + TypeScript — polls the API every 5s
-  Makefile    make backend | make frontend | make dev | make install | make build | make configure
+  backend/    .NET 10 minimal API — /api/repos, /api/agents (registry-backed)
+  frontend/   React + Vite + TypeScript — polls GET /api/agents every 5s
+  Makefile    make backend | make frontend | make dev | make install | make build
 ```
 
-**Backend** (`backend/Program.cs`, `backend/Services/GitStatusReader.cs`):
-- Reads agent definitions (`Name`, `Role`, `RepoPath`, `BaseBranch`) from config section
-  `AgentFleet:Agents`, bound via `Options/AgentFleetOptions.cs`.
-- `appsettings.json` ships with an **empty** agent list (safe for a public repo).
-- Real paths live in `backend/appsettings.Local.json`, which is **gitignored** — never commit real
-  filesystem paths. `backend/appsettings.Local.json.example` shows the shape; `make configure`
-  copies it for you if the real file doesn't exist yet.
+**Backend** (`backend/Program.cs`, `backend/Services/`):
+- `IRepoRegistry`/`RepoRegistry` and `IAgentRegistry`/`AgentRegistry` persist to
+  `backend/data/repos.json` / `agents.json` (JSON array files, one lock per store via the shared
+  `JsonFileStore<T>` helper). Both files are **gitignored** — same reasoning as the old
+  `appsettings.Local.json`: never commit real local paths.
+- `POST /api/repos` validates the path exists/is a directory server-side before persisting.
+  `AgentRegistry.AssignAsync` validates the `repoId` against `IRepoRegistry` before persisting an
+  assignment — **the repo registry is the allowlist**, an agent can never be pointed at an
+  unregistered path.
+- `GET /api/agents` resolves each `AgentDefinition`'s assigned `RepoDefinition` (if any) and runs
+  `IGitStatusReader` against its `Path`/`BaseBranch`; an unassigned agent gets a status with
+  `Error: "No repo assigned."` and no git fields populated.
 - `GitStatusReader` shells out to the system `git` binary via `ProcessStartInfo` with
-  `ArgumentList` (never a shell string) against **server-configured paths only**. This is a hard
-  rule, not a style preference: **never** wire a client-supplied path into this reader — it would
-  become an arbitrary path-read/command primitive. See the security note below.
-
-**Frontend** (`frontend/src/`):
-- `App.tsx` polls `GET /api/agents` every 5s (`POLL_INTERVAL_MS`), no other state management.
-- `types.ts` mirrors the backend's `AgentStatus` record exactly (camelCase, matches
-  System.Text.Json's default).
-- `components/AgentCard.tsx` renders one agent; `colors.ts` deterministically hashes agent name to
-  an avatar color so new agent names (not just Alice/Bob/Dua) get a sane look with zero config.
-- Design tokens (light/dark theme, IBM Plex Sans/Mono) live in `index.css`. This was carried over
-  intentionally from an earlier static-snapshot prototype (a Claude Artifact) that was validated
-  with the user before the live version was built — keep the visual language if you extend it.
+  `ArgumentList` (never a shell string) against a **registry-resolved path only** (a `repoPath`
+  parameter, sourced from `IRepoRegistry`, never a client-supplied path). This is a hard rule, not
+  a style preference: **never** wire a client-supplied path into this reader — it would become an
+  arbitrary path-read/command primitive. See the security note below.
+- The old `Options/AgentFleetOptions.cs` config-binding path and
+  `appsettings.Local.json.example` are gone. `backend/appsettings.Local.json` (the real, gitignored
+  file with the actual Alice/Bob/Dua paths) is no longer read by the app but was left on disk rather
+  than deleted; the same three agents were migrated into `backend/data/repos.json`/`agents.json`
+  with fresh GUIDs so `GET /api/agents` keeps working with zero manual steps.
 
 ## Security (read before touching the backend)
 
@@ -51,10 +54,12 @@ agent-fleet-board/
   commit messages, file paths) for every configured agent.
 - **Only ever run this bound to localhost.** Do not change the default bind address to `0.0.0.0`
   or deploy it publicly reachable without adding real auth first.
-- The `RepoPath` for every agent is server-config only, never accepted from a request body/query.
-  If a future feature needs to accept a path or repo identifier from the client (e.g. Phase 2's
-  "point an agent at a repo from the UI"), it must be validated against an allowlist of
-  already-registered paths — never passed raw into a `git`/filesystem call.
+- The path `GitStatusReader` actually runs against always comes from `IRepoRegistry`, never
+  straight from a request body/query. A client can pick a repo *by id* (`POST
+  /api/agents/{id}/assign`), but the `repoId` is checked against the registry before it's accepted
+  — a raw path is never passed through. `POST /api/repos` is the only place a raw path is ever
+  accepted from a client, and it's validated (`Directory.Exists`) before being persisted as a new
+  allowlist entry.
 
 ## Repo / deploy facts
 
@@ -76,11 +81,14 @@ agent-fleet-board/
 ## How to run it
 
 ```bash
-make configure   # first time only: creates backend/appsettings.Local.json from the example
-# edit backend/appsettings.Local.json to point at real agent repo paths
 make backend     # http://localhost:5299
 make frontend    # http://localhost:5173 (separate terminal/session)
 ```
+
+On this machine `backend/data/repos.json`/`agents.json` already exist with Alice/Bob/Dua migrated
+in (gitignored, so a fresh clone starts with an empty registry) — see README.md for the `POST
+/api/repos` / `POST /api/agents` / `.../assign` curl calls to populate it from scratch. There's no
+UI for this yet (Phase 3, not built).
 
 ## Phase 2 — not built yet, deliberately parked
 
@@ -93,8 +101,12 @@ Short version: the end goal is a UI where you can **create an agent, point it at
 hand it a prompt**, with a backend service that drives a real Claude Code session against that
 repo — this dashboard's read-only view becomes one panel in a larger control plane, not the whole
 product. One decision already locked in: **agent-to-repo binding is assignable per task, not
-fixed** (no "Alice always does frontend"). The very next concrete step is
-`docs/PHASE-2-BUILD-PLAN.md`'s Phase 1 (repo registry) — start there.
+fixed** (no "Alice always does frontend").
 
-Do not start implementing Phase 2 without asking the user to confirm scope — `docs/ROADMAP.md` is
-context to resume the conversation from, not a spec to build from silently.
+`docs/PHASE-2-BUILD-PLAN.md`'s Phase 1 (repo registry) and Phase 2 (agent registry + assignment)
+are **done** — see the Architecture section above. The next concrete step is that build plan's
+Phase 3 (registry management UI on the frontend); Phase 4 (manual-launch/prepare-prompt bridge)
+and real dispatch (Phase 2c in `docs/ROADMAP.md`) are still not started.
+
+Do not start implementing further phases without asking the user to confirm scope —
+`docs/ROADMAP.md` is context to resume the conversation from, not a spec to build from silently.
