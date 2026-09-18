@@ -5,6 +5,7 @@ import { StatusPill } from '../components/StatusPill';
 import { ActivityFeed } from '../components/ActivityFeed';
 import { SystemHealthPanel } from '../components/SystemHealthPanel';
 import type { Tab } from '../components/Sidebar';
+import type { ActivityFilter } from './ActivityPage';
 
 export function DashboardPage({
   agents,
@@ -12,12 +13,14 @@ export function DashboardPage({
   activity,
   onChange,
   onNavigate,
+  onOpenActivity,
 }: {
   agents: AgentStatus[];
   repos: RepoDefinition[];
   activity: SessionActivity[];
   onChange: () => void;
   onNavigate: (tab: Tab) => void;
+  onOpenActivity: (filter?: ActivityFilter) => void;
 }) {
   const runningTasks = activity.filter((a) => a.status === 'Running').length;
   const failedTasks = activity.filter((a) => a.status === 'Failed').length;
@@ -52,14 +55,14 @@ export function DashboardPage({
           <div className="num">{idleAgents.length}</div>
           <div className="label">Idle agents</div>
         </div>
-        <div className="stat">
+        <button type="button" className="stat stat-filter" onClick={() => onOpenActivity('Running')}>
           <div className="num">{runningTasks}</div>
           <div className="label">Running tasks</div>
-        </div>
-        <div className="stat">
+        </button>
+        <button type="button" className="stat stat-filter failed-stat" onClick={() => onOpenActivity('Failed')}>
           <div className="num">{failedTasks}</div>
           <div className="label">Failed tasks</div>
-        </div>
+        </button>
       </div>
 
       <div className="dashboard-grid">
@@ -107,7 +110,7 @@ export function DashboardPage({
         <div className="panel dashboard-activity">
           <div className="panel-head">
             <span className="panel-title">Activity Log</span>
-            <button type="button" className="panel-link" onClick={() => onNavigate('activity')}>
+            <button type="button" className="panel-link" onClick={() => onOpenActivity('all')}>
               View all →
             </button>
           </div>

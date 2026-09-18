@@ -63,12 +63,16 @@ export interface SessionActivity {
   id: string;
   agentId: string;
   agentName: string;
+  agentRole: string;
+  projectName: string | null;
   repoId: string;
+  repoName: string;
   repoPath: string;
   prompt: string;
   status: SessionStatus;
   startedAtUtc: string;
   endedAtUtc: string | null;
+  durationMs: number | null;
   exitCode: number | null;
 }
 

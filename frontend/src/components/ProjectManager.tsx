@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { createProject, deleteProject } from '../api';
 import type { Project, RepoDefinition } from '../types';
+import { CustomSelect } from './CustomSelect';
 
 const BRANCH_PRESETS = ['main', 'master', 'develop'];
 
@@ -82,25 +83,23 @@ export function ProjectManager({
 
       <form className="manage-form" onSubmit={handleSubmit}>
         <input placeholder="Project name" value={name} onChange={(e) => setName(e.target.value)} required />
-        <select value={repoId} onChange={(e) => setRepoId(e.target.value)}>
-          <option value="">No default repo</option>
-          {repos.map((repo) => (
-            <option value={repo.id} key={repo.id}>
-              {repo.name}
-            </option>
-          ))}
-        </select>
+        <CustomSelect
+          value={repoId}
+          onChange={setRepoId}
+          options={[{ value: '', label: 'No default repo' }, ...repos.map((repo) => ({ value: repo.id, label: repo.name }))]}
+        />
         <input
           placeholder="Base branch (optional)"
-          list="project-base-branch-presets"
           value={baseBranch}
           onChange={(e) => setBaseBranch(e.target.value)}
         />
-        <datalist id="project-base-branch-presets">
+        <div className="preset-row" aria-label="Branch presets">
           {BRANCH_PRESETS.map((preset) => (
-            <option value={preset} key={preset} />
+            <button type="button" className="preset-chip" key={preset} onClick={() => setBaseBranch(preset)}>
+              {preset}
+            </button>
           ))}
-        </datalist>
+        </div>
         <button type="submit" disabled={busy}>
           Create project
         </button>

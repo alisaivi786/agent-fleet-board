@@ -5,6 +5,7 @@ import { assignAgent, fetchSessions, forceStopSession, unassignAgent } from '../
 import { SessionPanel } from './SessionPanel';
 import { StatusPill } from './StatusPill';
 import { AgentHistoryModal } from './AgentHistoryModal';
+import { CustomSelect } from './CustomSelect';
 
 function relativeTime(iso: string | null): string {
   if (!iso) return '-';
@@ -118,14 +119,12 @@ export function AgentCard({
 
       <div className="assign-row">
         <span className="k">Repo</span>
-        <select value={agent.repoId ?? ''} onChange={(e) => handleReassign(e.target.value)} disabled={reassignBusy}>
-          <option value="">Unassigned</option>
-          {repos.map((repo) => (
-            <option value={repo.id} key={repo.id}>
-              {repo.name}
-            </option>
-          ))}
-        </select>
+        <CustomSelect
+          value={agent.repoId ?? ''}
+          onChange={handleReassign}
+          disabled={reassignBusy}
+          options={[{ value: '', label: 'Unassigned' }, ...repos.map((repo) => ({ value: repo.id, label: repo.name }))]}
+        />
       </div>
       {reassignError && <div className="error-banner">{reassignError}</div>}
 

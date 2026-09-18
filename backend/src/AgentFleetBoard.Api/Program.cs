@@ -258,15 +258,46 @@ app.MapGet("/api/agents/{id:guid}/sessions", async (Guid id, ISessionRegistry se
 // Backs the Activity Log - recent sessions across every agent, newest first, joined with agent
 // name for display. Capped at 100; this is a local dev tool with modest session volume, not a
 // paginated audit log.
-app.MapGet("/api/sessions", async (IAgentRegistry agents, ISessionRegistry sessions, CancellationToken cancellationToken) =>
+app.MapGet("/api/sessions", async (
+    IAgentRegistry agents, IRepoRegistry repos, IProjectRegistry projects, ISessionRegistry sessions,
+    CancellationToken cancellationToken) =>
 {
     IReadOnlyList<AgentSession> recent = await sessions.GetRecentAsync(100, cancellationToken);
     IReadOnlyList<AgentDefinition> agentDefinitions = await agents.GetAllAsync(cancellationToken);
-    Dictionary<Guid, string> namesById = agentDefinitions.ToDictionary(a => a.Id, a => a.Name);
+    IReadOnlyList<RepoDefinition> repoDefinitions = await repos.GetAllAsync(cancellationToken);
+    IReadOnlyList<Project> projectDefinitions = await projects.GetAllAsync(cancellationToken);
 
-    var activity = recent.Select(s => new SessionActivity(
-        s.Id, s.AgentId, namesById.GetValueOrDefault(s.AgentId, "Unknown agent"), s.RepoId, s.RepoPath,
-        s.Prompt, s.Status, s.StartedAtUtc, s.EndedAtUtc, s.ExitCode));
+    Dictionary<Guid, AgentDefinition> agentsById = agentDefinitions.ToDictionary(a => a.Id);
+    Dictionary<Guid, RepoDefinition> reposById = repoDefinitions.ToDictionary(r => r.Id);
+    Dictionary<Guid, Project> projectsById = projectDefinitions.ToDictionary(p => p.Id);
+
+    var activity = recent.Select(s =>
+    {
+        agentsById.TryGetValue(s.AgentId, out AgentDefinition? agent);
+        reposById.TryGetValue(s.RepoId, out RepoDefinition? repo);
+        Project? project = agent?.ProjectId is { } projectId && projectsById.TryGetValue(projectId, out Project? foundProject)
+            ? foundProject
+            : null;
+        long? durationMs = s.EndedAtUtc is { } endedAt
+            ? Math.Max(0, (long)(endedAt - s.StartedAtUtc).TotalMilliseconds)
+            : null;
+
+        return new SessionActivity(
+            s.Id,
+            s.AgentId,
+            agent?.Name ?? "Unknown agent",
+            agent?.Role ?? "Unknown role",
+            project?.Name,
+            s.RepoId,
+            repo?.Name ?? Path.GetFileName(s.RepoPath.TrimEnd('\\', '/')),
+            s.RepoPath,
+            s.Prompt,
+            s.Status,
+            s.StartedAtUtc,
+            s.EndedAtUtc,
+            durationMs,
+            s.ExitCode);
+    });
     return Results.Ok(activity);
 });
 

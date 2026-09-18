@@ -8,6 +8,7 @@ import {
   unassignAgentProject,
 } from '../api';
 import type { AgentStatus, Project, RepoDefinition } from '../types';
+import { CustomSelect } from './CustomSelect';
 
 export function AgentManager({
   agents,
@@ -97,24 +98,24 @@ export function AgentManager({
                 <td>{agent.name}</td>
                 <td>{agent.role}</td>
                 <td>
-                  <select value={agent.projectId ?? ''} onChange={(e) => handleAssignProject(agent.id, e.target.value)}>
-                    <option value="">No project</option>
-                    {projects.map((project) => (
-                      <option value={project.id} key={project.id}>
-                        {project.name}
-                      </option>
-                    ))}
-                  </select>
+                  <CustomSelect
+                    value={agent.projectId ?? ''}
+                    onChange={(value) => handleAssignProject(agent.id, value)}
+                    options={[
+                      { value: '', label: 'No project' },
+                      ...projects.map((project) => ({ value: project.id, label: project.name })),
+                    ]}
+                  />
                 </td>
                 <td>
-                  <select value={agent.repoId ?? ''} onChange={(e) => handleAssign(agent.id, e.target.value)}>
-                    <option value="">Unassigned</option>
-                    {repos.map((repo) => (
-                      <option value={repo.id} key={repo.id}>
-                        {repo.name}
-                      </option>
-                    ))}
-                  </select>
+                  <CustomSelect
+                    value={agent.repoId ?? ''}
+                    onChange={(value) => handleAssign(agent.id, value)}
+                    options={[
+                      { value: '', label: 'Unassigned' },
+                      ...repos.map((repo) => ({ value: repo.id, label: repo.name })),
+                    ]}
+                  />
                 </td>
                 <td>
                   <button type="button" className="btn-danger" onClick={() => handleDelete(agent.id)}>

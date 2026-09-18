@@ -11,15 +11,16 @@ function relativeTime(iso: string): string {
 }
 
 function eventText(entry: SessionActivity): string {
+  const repo = entry.repoName ? ` in ${entry.repoName}` : '';
   switch (entry.status) {
     case 'Running':
-      return `${entry.agentName} started a session`;
+      return `${entry.agentName} started a session${repo}`;
     case 'Succeeded':
-      return `${entry.agentName}'s session succeeded`;
+      return `${entry.agentName}'s session succeeded${repo}`;
     case 'Failed':
-      return `${entry.agentName}'s session failed${entry.exitCode !== null ? ` (exit ${entry.exitCode})` : ''}`;
+      return `${entry.agentName}'s session failed${repo}${entry.exitCode !== null ? ` (exit ${entry.exitCode})` : ''}`;
     case 'Stopped':
-      return `${entry.agentName}'s session was stopped`;
+      return `${entry.agentName}'s session was stopped${repo}`;
   }
 }
 

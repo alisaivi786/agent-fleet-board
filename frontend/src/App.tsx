@@ -6,8 +6,9 @@ import { ProjectShowcase } from './components/ProjectShowcase';
 import { DashboardPage } from './pages/DashboardPage';
 import { RepositoriesPage } from './pages/RepositoriesPage';
 import { AgentsPage } from './pages/AgentsPage';
-import { ActivityPage } from './pages/ActivityPage';
+import { ActivityPage, type ActivityFilter } from './pages/ActivityPage';
 import { ManagePage } from './pages/ManagePage';
+import { CustomSelect } from './components/CustomSelect';
 import { MoonIcon, PauseIcon, PlayIcon, SunIcon } from './icons';
 
 const POLL_OPTIONS_MS = [2000, 5000, 10000, 30000, 60000];
@@ -44,6 +45,8 @@ export default function App() {
   const [theme, setTheme] = useState<Theme>(initialTheme);
   const [pollIntervalMs, setPollIntervalMs] = useState(5000);
   const [pollActive, setPollActive] = useState(true);
+  const [activityFilter, setActivityFilter] = useState<ActivityFilter>('all');
+  const [activityFilterRequestId, setActivityFilterRequestId] = useState(0);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -96,11 +99,25 @@ export default function App() {
     if (next) refetch();
   }
 
+  function openActivity(filter: ActivityFilter = 'all') {
+    setActivityFilter(filter);
+    setActivityFilterRequestId((id) => id + 1);
+    setTab('activity');
+  }
+
+  function selectTab(nextTab: Tab) {
+    if (nextTab === 'activity') {
+      setActivityFilter('all');
+      setActivityFilterRequestId((id) => id + 1);
+    }
+    setTab(nextTab);
+  }
+
   const loading = !agents || !repos || !projects || !activity;
 
   return (
     <div className="app-shell">
-      <Sidebar tab={tab} onSelect={setTab} />
+      <Sidebar tab={tab} onSelect={selectTab} />
       <div className="app-main">
         <header className="top-bar">
           <h1>{TAB_TITLES[tab]}</h1>
@@ -114,18 +131,13 @@ export default function App() {
               >
                 {pollActive ? <PauseIcon /> : <PlayIcon />}
               </button>
-              <select
+              <CustomSelect
                 className="poll-select"
-                value={pollIntervalMs}
-                onChange={(e) => setPollIntervalMs(Number(e.target.value))}
+                value={String(pollIntervalMs)}
+                onChange={(value) => setPollIntervalMs(Number(value))}
                 title="Poll interval"
-              >
-                {POLL_OPTIONS_MS.map((ms) => (
-                  <option value={ms} key={ms}>
-                    every {ms / 1000}s
-                  </option>
-                ))}
-              </select>
+                options={POLL_OPTIONS_MS.map((ms) => ({ value: String(ms), label: `${ms / 1000}s` }))}
+              />
               <span className="repo-tag">{pollActive ? 'live' : 'paused'}</span>
             </div>
             <button
@@ -145,15 +157,26 @@ export default function App() {
           {loading ? (
             <p className="loading">Loading fleet status…</p>
           ) : tab === 'dashboard' ? (
-            <DashboardPage agents={agents} repos={repos} activity={activity} onChange={refetch} onNavigate={setTab} />
+            <DashboardPage
+              agents={agents}
+              repos={repos}
+              activity={activity}
+              onChange={refetch}
+              onNavigate={setTab}
+              onOpenActivity={openActivity}
+            />
           ) : tab === 'repositories' ? (
             <RepositoriesPage repos={repos} agents={agents} />
           ) : tab === 'agents' ? (
             <AgentsPage agents={agents} repos={repos} onChange={refetch} />
           ) : tab === 'projects' ? (
-            <ProjectShowcase projects={projects} agents={agents} />
+            <ProjectShowcase projects={projects} agents={agents} activity={activity} />
           ) : tab === 'activity' ? (
-            <ActivityPage activity={activity} />
+            <ActivityPage
+              activity={activity}
+              initialFilter={activityFilter}
+              filterRequestId={activityFilterRequestId}
+            />
           ) : (
             <ManagePage agents={agents} repos={repos} projects={projects} onChange={refetch} />
           )}
