@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { AgentSession } from '../types';
 import { fetchSession, fetchSessionLog, fetchSessions, forceStopSession } from '../api';
 import { avatarColor } from '../colors';
@@ -165,7 +166,10 @@ export function AgentHistoryModal({
 
   const runningCount = sessions?.filter((s) => s.status === 'Running').length ?? 0;
 
-  return (
+  // Portalled to <body> - this modal is opened from inside an AgentCard, and that card gets a
+  // hover `transform` (index.css .card:hover) which would otherwise become the containing block
+  // for this "fixed" backdrop, making it center on the card instead of the viewport.
+  return createPortal(
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal-card history-modal" onClick={(e) => e.stopPropagation()}>
         <div className="history-modal-head">
@@ -200,6 +204,7 @@ export function AgentHistoryModal({
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
