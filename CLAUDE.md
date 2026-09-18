@@ -84,31 +84,15 @@ make frontend    # http://localhost:5173 (separate terminal/session)
 
 ## Phase 2 — not built yet, deliberately parked
 
-The longer-term goal (stated by the user, not yet scoped into a plan): a UI where you can
-**create an agent, point it at any repo, and hand it a prompt**, with a backend service that
-actually drives a real Claude Code session against that repo — this dashboard's read-only view
-would become one part of a real control plane.
+**Full plan: [`docs/ROADMAP.md`](docs/ROADMAP.md).** Read it before touching anything beyond v1 —
+it has the target user stories, the architecture options for actually launching agent sessions,
+every open question that needs the user's input before code gets written, and a rough phasing.
 
-This was explicitly deferred until v1 (this read-only dashboard) was working and reviewed, so
-scope was never nailed down. Known constraints/decisions so far, to save re-litigating them:
+Short version: the end goal is a UI where you can **create an agent, point it at any repo, and
+hand it a prompt**, with a backend service that drives a real Claude Code session against that
+repo — this dashboard's read-only view becomes one panel in a larger control plane, not the whole
+product. One decision already locked in: **agent-to-repo binding is assignable per task, not
+fixed** (no "Alice always does frontend").
 
-- **Agent-to-repo binding is assignable per task, not fixed.** The user rejected fixed roles
-  (e.g. "Alice always does frontend") in favor of pointing any named agent at any repo when a task
-  is handed out.
-- **"No agent will work without an active Claude account"** — the user's own framing. Whatever
-  Phase 2 becomes, it depends on a real, authenticated Claude Code session running per agent; this
-  is not a multi-tenant SaaS auth problem, it's "this tool drives Claude Code sessions that need
-  your own Claude login."
-- Open, unanswered questions a future session should raise with the user before building anything:
-  - How does Phase 2 actually launch/attach to a Claude Code session per agent — a new terminal, a
-    background process this backend supervises, something else? This has real process-lifecycle
-    and security implications (arbitrary prompt → arbitrary repo access) that need a real design
-    pass, not an assumption.
-  - How are logs/output streamed back to the UI live (SSE, WebSocket, polling a log file)?
-  - Does "connect to repo" mean cloning fresh, or pointing at an existing local worktree like v1
-    does?
-  - What happens to the existing read-only `/api/agents` endpoint — does it merge with the new
-    control-plane API, or stay separate?
-
-Do not start implementing Phase 2 without asking the user to confirm scope — this section is
-context to resume the conversation, not a spec to build from silently.
+Do not start implementing Phase 2 without asking the user to confirm scope — `docs/ROADMAP.md` is
+context to resume the conversation from, not a spec to build from silently.

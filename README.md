@@ -62,4 +62,5 @@ localhost.** Do not deploy it publicly reachable as-is.
 
 This is a read-only status viewer today — it does not launch agents or send them work. That's a
 deliberate scope boundary for now, not a missing feature; a "create/dispatch an agent from the UI"
-control plane is a separate, larger piece of work.
+control plane is a separate, larger piece of work. See [`docs/ROADMAP.md`](docs/ROADMAP.md) for the
+full plan, open questions, and phasing.
