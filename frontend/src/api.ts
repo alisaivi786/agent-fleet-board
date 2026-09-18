@@ -48,3 +48,7 @@ export function unassignAgent(id: string): Promise<AgentDefinition> {
 export function deleteAgent(id: string): Promise<void> {
   return request(`/api/agents/${id}`, { method: 'DELETE' });
 }
+
+export function preparePrompt(id: string, prompt: string): Promise<{ command: string }> {
+  return request(`/api/agents/${id}/prepare-prompt`, { method: 'POST', body: JSON.stringify({ prompt }) });
+}

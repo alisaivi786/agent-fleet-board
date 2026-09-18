@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import type { AgentStatus } from '../types';
 import { avatarColor } from '../colors';
+import { preparePrompt } from '../api';
 
 function relativeTime(iso: string | null): string {
   if (!iso) return '—';
@@ -15,6 +17,39 @@ function relativeTime(iso: string | null): string {
 export function AgentCard({ agent }: { agent: AgentStatus }) {
   const working = !agent.isClean || agent.aheadOfBase > 0;
   const initial = agent.name.charAt(0).toUpperCase();
+
+  const [promptOpen, setPromptOpen] = useState(false);
+  const [prompt, setPrompt] = useState('');
+  const [command, setCommand] = useState<string | null>(null);
+  const [promptError, setPromptError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  async function handlePrepare(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setPromptError(null);
+    setCopied(false);
+    try {
+      const result = await preparePrompt(agent.id, prompt);
+      setCommand(result.command);
+    } catch (err) {
+      setCommand(null);
+      setPromptError(err instanceof Error ? err.message : 'Failed to prepare command');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleCopy() {
+    if (!command) return;
+    try {
+      await navigator.clipboard.writeText(command);
+      setCopied(true);
+    } catch {
+      setCopied(false);
+    }
+  }
 
   return (
     <div className="card">
@@ -86,6 +121,39 @@ export function AgentCard({ agent }: { agent: AgentStatus }) {
           ))}
           {agent.changedFiles.length > 6 && <span className="tag">+{agent.changedFiles.length - 6} more</span>}
         </div>
+      )}
+
+      <button
+        type="button"
+        className="prompt-toggle"
+        onClick={() => setPromptOpen((open) => !open)}
+        disabled={!agent.repoId}
+        title={agent.repoId ? undefined : 'Assign a repo first'}
+      >
+        {promptOpen ? 'Cancel' : 'Prompt'}
+      </button>
+
+      {promptOpen && (
+        <form className="prompt-box" onSubmit={handlePrepare}>
+          <textarea
+            placeholder="What should this agent do?"
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            required
+          />
+          <button type="submit" disabled={busy}>
+            Prepare command
+          </button>
+          {promptError && <div className="error-banner">{promptError}</div>}
+          {command && (
+            <div className="prompt-command">
+              <code>{command}</code>
+              <button type="button" onClick={handleCopy}>
+                {copied ? 'Copied' : 'Copy'}
+              </button>
+            </div>
+          )}
+        </form>
       )}
     </div>
   );

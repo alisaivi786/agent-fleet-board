@@ -92,6 +92,31 @@ app.MapPost("/api/agents/{id:guid}/unassign", async (Guid id, IAgentRegistry age
 app.MapDelete("/api/agents/{id:guid}", async (Guid id, IAgentRegistry agents, CancellationToken cancellationToken) =>
     await agents.RemoveAsync(id, cancellationToken) ? Results.NoContent() : Results.NotFound());
 
+// Phase 4 (manual-launch bridge): formats a ready-to-run CLI command from the agent's
+// registry-resolved repo path - never executes anything itself. The operator copies this into
+// their own terminal and runs it. Real dispatch (the backend spawning/supervising the session
+// itself) is a separate, later decision - see docs/ROADMAP.md's "open question #1".
+app.MapPost("/api/agents/{id:guid}/prepare-prompt", async (
+    Guid id, PreparePromptRequest request, IAgentRegistry agents, IRepoRegistry repos, CancellationToken cancellationToken) =>
+{
+    IReadOnlyList<AgentDefinition> agentDefinitions = await agents.GetAllAsync(cancellationToken);
+    AgentDefinition? agent = agentDefinitions.FirstOrDefault(a => a.Id == id);
+    if (agent is null)
+    {
+        return Results.NotFound();
+    }
+
+    RepoDefinition? repo = agent.AssignedRepoId is { } repoId ? await repos.GetByIdAsync(repoId, cancellationToken) : null;
+    if (repo is null)
+    {
+        return Results.BadRequest(new { error = "Agent has no repo assigned." });
+    }
+
+    string escapedPrompt = request.Prompt.Replace("\"", "\\\"");
+    string command = $"cd \"{repo.Path}\" && claude \"{escapedPrompt}\"";
+    return Results.Ok(new { command });
+});
+
 app.MapGet("/", () => Results.Redirect("/swagger"));
 
 app.Run();
@@ -101,3 +126,5 @@ internal sealed record CreateRepoRequest(string Name, string Path, string BaseBr
 internal sealed record CreateAgentRequest(string Name, string Role);
 
 internal sealed record AssignAgentRequest(Guid RepoId);
+
+internal sealed record PreparePromptRequest(string Prompt);

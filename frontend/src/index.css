@@ -351,6 +351,94 @@ h1 {
   opacity: 0.85;
 }
 
+.prompt-toggle {
+  margin-top: 14px;
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--accent);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.prompt-toggle:disabled {
+  color: var(--ink-dim);
+  cursor: default;
+  opacity: 0.6;
+}
+
+.prompt-box {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.prompt-box textarea {
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  resize: vertical;
+  min-height: 60px;
+}
+
+.prompt-box > button {
+  align-self: flex-start;
+  font-family: var(--font-sans);
+  font-size: 0.82rem;
+  font-weight: 600;
+  border-radius: 8px;
+  padding: 7px 12px;
+  cursor: pointer;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+.prompt-box > button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.prompt-command {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: var(--surface-alt);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.prompt-command code {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.prompt-command button {
+  flex: none;
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  font-weight: 600;
+  border-radius: 6px;
+  padding: 4px 8px;
+  cursor: pointer;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+}
+
 .tab-row {
   display: flex;
   gap: 6px;
