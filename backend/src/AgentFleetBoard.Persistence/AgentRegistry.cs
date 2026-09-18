@@ -36,10 +36,7 @@ public sealed class AgentRegistry(AgentFleetBoardDbContext db) : IAgentRegistry
             return null;
         }
 
-        // Direct repo assignment always wins over a project binding - an agent can't be "bound to
-        // project X's repo" while actually pointed at a different repo picked here.
         agent.AssignedRepoId = repoId;
-        agent.ProjectId = null;
         await db.SaveChangesAsync(cancellationToken);
         return agent;
     }
@@ -71,8 +68,11 @@ public sealed class AgentRegistry(AgentFleetBoardDbContext db) : IAgentRegistry
             return null;
         }
 
+        // Projects are a grouping label, not a hard repo lock: an agent that already tracks a repo
+        // (its own worktree, say) keeps it - a project only supplies a default repo for an agent
+        // that doesn't have one yet. Never silently repoint an already-assigned agent.
         agent.ProjectId = projectId;
-        agent.AssignedRepoId = project.RepoId;
+        agent.AssignedRepoId ??= project.RepoId;
         await db.SaveChangesAsync(cancellationToken);
         return agent;
     }

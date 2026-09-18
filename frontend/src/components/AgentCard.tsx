@@ -69,12 +69,7 @@ export function AgentCard({
 
       <div className="assign-row">
         <span className="k">Repo</span>
-        <select
-          value={agent.repoId ?? ''}
-          onChange={(e) => handleReassign(e.target.value)}
-          disabled={reassignBusy || !!agent.projectId}
-          title={agent.projectId ? `Bound to project "${agent.projectName}" - manage in the Manage tab` : undefined}
-        >
+        <select value={agent.repoId ?? ''} onChange={(e) => handleReassign(e.target.value)} disabled={reassignBusy}>
           <option value="">Unassigned</option>
           {repos.map((repo) => (
             <option value={repo.id} key={repo.id}>

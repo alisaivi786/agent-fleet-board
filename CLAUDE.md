@@ -67,19 +67,24 @@ would justify them. Add layers when something concrete needs them, not preemptiv
   machine's Postgres via `docker exec ... psql` after migrating; a fresh clone's DB starts empty
   and needs repos/agents registered through the API (see README.md).
 - **Projects (2026-09-18):** `003_CreateProjects.cs` adds a `projects` table (`id`, `name`, `repo_id`
-  — `repo_id` is `NOT NULL`, `ON DELETE CASCADE`, a project always has exactly one bound repo) and
-  an `agents.project_id` nullable FK (`ON DELETE SET NULL`). A project groups agents under one repo
+  — `repo_id` is `NOT NULL`, `ON DELETE CASCADE`, schema-wise a project needs one repo to point at)
+  and an `agents.project_id` nullable FK (`ON DELETE SET NULL`). A project groups agents for display
   so you can see "what's this codebase's fleet doing" at a glance, not just a flat agent list.
-  **Invariant enforced in `AgentRegistry`, not just the UI:** `AssignProjectAsync` always sets
-  `AssignedRepoId` to the project's `RepoId` in the same write, so an agent bound to a project can
-  never end up pointed at a different repo; conversely, the plain `AssignAsync` (direct repo pick)
-  always clears `ProjectId` — picking a repo by hand means leaving the project. `GET /api/agents`
-  joins in `ProjectName` for display; the frontend's Projects tab (`ProjectShowcase.tsx`) is the
-  "showcase" screen: one card per project with its bound repo and the agents currently in it, plus
-  an "Unassigned agents" strip for agents with no project. `ProjectManager.tsx` (Manage tab)
-  creates/deletes projects; `AgentManager.tsx`'s agent table and `AgentCard.tsx`'s inline repo
-  select both disable manual repo (re)assignment while a project is set, with a tooltip pointing at
-  unassigning the project first.
+  **Deliberately a grouping label, not a hard repo lock** — real usage has multiple agents each on
+  their own git worktree of the *same* logical project (e.g. Alice/Bob/Dua each have a separate
+  `alice-repo`/`bob-repo`/`dua-repo` registry entry for their own `FMS-Prime` worktree), so forcing
+  every agent in a project onto one shared repo would have broken their individual git status
+  tracking the first time this was tried. `AssignProjectAsync` only fills in `AssignedRepoId` from
+  the project's `RepoId` when the agent doesn't have one yet (`agent.AssignedRepoId ??=
+  project.RepoId`) — an agent that already tracks a repo keeps it, full stop. The plain `AssignAsync`
+  (direct repo pick) no longer touches `ProjectId` either way. **Once an agent has a repo/branch
+  assigned, nothing changes it out from under the agent except an explicit assign/unassign call** —
+  this matters at scale (100+ agents is an explicit target), where silent reassignment would be
+  impossible to audit. `GET /api/agents` joins in `ProjectName` for display; the frontend's Projects
+  tab (`ProjectShowcase.tsx`) is the "showcase" screen: one card per project with its bound repo and
+  the agents currently in it, plus an "Unassigned agents" strip. `ProjectManager.tsx` (Manage tab)
+  creates/deletes projects; the repo select in `AgentManager.tsx`/`AgentCard.tsx` is never disabled
+  by a project assignment.
 
 **Api** (`backend/src/AgentFleetBoard.Api/Program.cs`):
 - `GitStatusReader` (unchanged from before this restructuring) shells out to the system `git`
@@ -162,6 +167,15 @@ On this machine Postgres already has Alice/Bob/Dua's real worktree paths seeded 
 directly via `docker exec ... psql`, not through a migration — see Architecture above). A fresh
 clone's DB starts empty; use the Manage tab in the UI, or the `POST /api/repos` / `POST
 /api/agents` / `.../assign` curl calls in README.md, to populate it.
+
+Also seeded directly the same way (2026-09-18): a `FMSPrime-backend` project, with Alice/Bob/Dua's
+`project_id` backfilled to it via a plain `UPDATE agents SET project_id = ... WHERE id IN (...)` —
+their `assigned_repo_id` was deliberately left untouched (each keeps its own worktree repo). This
+was done directly against Postgres, not via the live API, specifically because the API process
+running at the time still had the pre-2026-09-18 stricter build (the one that force-overwrote an
+agent's repo on project assignment) — going through it would have clobbered all three agents' repo
+assignments. Once the backend is restarted onto the current code, the same result is reachable via
+`POST /api/agents/{id}/assign-project` for any newly-added agent that doesn't have a repo yet.
 
 ## Phase 2 — not built yet, deliberately parked
 

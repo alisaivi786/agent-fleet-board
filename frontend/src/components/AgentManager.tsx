@@ -107,12 +107,7 @@ export function AgentManager({
                   </select>
                 </td>
                 <td>
-                  <select
-                    value={agent.repoId ?? ''}
-                    onChange={(e) => handleAssign(agent.id, e.target.value)}
-                    disabled={!!agent.projectId}
-                    title={agent.projectId ? 'Bound to project repo - unassign the project first' : undefined}
-                  >
+                  <select value={agent.repoId ?? ''} onChange={(e) => handleAssign(agent.id, e.target.value)}>
                     <option value="">Unassigned</option>
                     {repos.map((repo) => (
                       <option value={repo.id} key={repo.id}>
