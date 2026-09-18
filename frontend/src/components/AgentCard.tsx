@@ -75,7 +75,7 @@ export function AgentCard({ agent }: { agent: AgentStatus }) {
         </div>
       )}
 
-      <div className="worktree-path">{agent.repoPath}</div>
+      {agent.repoPath && <div className="worktree-path">{agent.repoPath}</div>}
 
       {agent.changedFiles.length > 0 && (
         <div className="swap-strip">
