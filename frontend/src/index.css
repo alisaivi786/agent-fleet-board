@@ -94,9 +94,9 @@ header.top {
   display: flex;
   flex-wrap: wrap;
   gap: 16px;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
-  margin-bottom: 6px;
+  margin-bottom: 28px;
 }
 
 h1 {
@@ -121,7 +121,50 @@ h1 {
 .sub {
   color: var(--ink-dim);
   font-size: 0.92rem;
-  margin: 2px 0 28px;
+  margin: 2px 0 0;
+}
+
+.top-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+}
+
+.poll-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.poll-select {
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  color: var(--ink);
+  background: var(--surface-alt);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 4px 6px;
+}
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  color: var(--ink-dim);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  cursor: pointer;
+  flex: none;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.icon-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
 .loading {

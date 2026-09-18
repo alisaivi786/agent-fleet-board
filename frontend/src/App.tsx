@@ -4,11 +4,24 @@ import type { AgentStatus, RepoDefinition } from './types';
 import { AgentCard } from './components/AgentCard';
 import { RepoManager } from './components/RepoManager';
 import { AgentManager } from './components/AgentManager';
+import { MoonIcon, PauseIcon, PlayIcon, SunIcon } from './icons';
 
-const POLL_INTERVAL_MS = 5000;
+const POLL_OPTIONS_MS = [2000, 5000, 10000, 30000, 60000];
+const THEME_STORAGE_KEY = 'afb-theme';
 
 type Tab = 'roster' | 'manage';
 type StatusFilter = 'all' | 'idle' | 'working' | 'error';
+type Theme = 'light' | 'dark';
+
+function initialTheme(): Theme {
+  try {
+    const stored = localStorage.getItem(THEME_STORAGE_KEY);
+    if (stored === 'light' || stored === 'dark') return stored;
+  } catch {
+    // localStorage unavailable - fall through to system preference.
+  }
+  return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
 
 function isIdle(agent: AgentStatus): boolean {
   return !agent.error && agent.isClean && agent.aheadOfBase === 0;
@@ -25,6 +38,18 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [theme, setTheme] = useState<Theme>(initialTheme);
+  const [pollIntervalMs, setPollIntervalMs] = useState(5000);
+  const [pollActive, setPollActive] = useState(true);
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    try {
+      localStorage.setItem(THEME_STORAGE_KEY, theme);
+    } catch {
+      // Best-effort persistence only - the toggle still works for this session either way.
+    }
+  }, [theme]);
 
   const refetch = useCallback(async (signal?: AbortSignal) => {
     try {
@@ -40,23 +65,26 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
     const controller = new AbortController();
+    refetch(controller.signal);
+    return () => controller.abort();
+  }, [refetch]);
 
-    async function load() {
-      if (!cancelled) {
-        await refetch(controller.signal);
-      }
-    }
-
-    load();
-    const interval = setInterval(load, POLL_INTERVAL_MS);
+  useEffect(() => {
+    if (!pollActive) return;
+    const controller = new AbortController();
+    const interval = setInterval(() => refetch(controller.signal), pollIntervalMs);
     return () => {
-      cancelled = true;
       controller.abort();
       clearInterval(interval);
     };
-  }, [refetch]);
+  }, [refetch, pollIntervalMs, pollActive]);
+
+  function togglePolling() {
+    const next = !pollActive;
+    setPollActive(next);
+    if (next) refetch();
+  }
 
   const idleCount = agents?.filter(isIdle).length ?? 0;
   const workingCount = agents?.filter(isWorking).length ?? 0;
@@ -80,10 +108,44 @@ export default function App() {
   return (
     <div className="wrap">
       <header className="top">
-        <h1>Agent Fleet Board</h1>
-        <span className="repo-tag">live · polling every {POLL_INTERVAL_MS / 1000}s</span>
+        <div>
+          <h1>Agent Fleet Board</h1>
+          <p className="sub">Real-time git status for every configured agent working tree.</p>
+        </div>
+        <div className="top-controls">
+          <div className="poll-control">
+            <button
+              type="button"
+              className="icon-btn"
+              onClick={togglePolling}
+              title={pollActive ? 'Pause polling' : 'Resume polling'}
+            >
+              {pollActive ? <PauseIcon /> : <PlayIcon />}
+            </button>
+            <select
+              className="poll-select"
+              value={pollIntervalMs}
+              onChange={(e) => setPollIntervalMs(Number(e.target.value))}
+              title="Poll interval"
+            >
+              {POLL_OPTIONS_MS.map((ms) => (
+                <option value={ms} key={ms}>
+                  every {ms / 1000}s
+                </option>
+              ))}
+            </select>
+            <span className="repo-tag">{pollActive ? 'live' : 'paused'}</span>
+          </div>
+          <button
+            type="button"
+            className="icon-btn theme-toggle"
+            onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
+            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
+          </button>
+        </div>
       </header>
-      <p className="sub">Real-time git status for every configured agent working tree.</p>
 
       <div className="tab-row">
         <button className={tab === 'roster' ? 'tab active' : 'tab'} onClick={() => setTab('roster')}>
