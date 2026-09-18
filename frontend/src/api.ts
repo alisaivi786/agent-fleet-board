@@ -94,3 +94,9 @@ export function fetchSessionLog(id: string, signal?: AbortSignal): Promise<{ log
 export function stopSession(id: string): Promise<void> {
   return request(`/api/sessions/${id}/stop`, { method: 'POST' });
 }
+
+// Frees an agent stuck showing Running - works even if the backend restarted and lost track of
+// the OS process (see CLAUDE.md), unlike stopSession above which only works for a tracked process.
+export function forceStopSession(id: string): Promise<AgentSession> {
+  return request(`/api/sessions/${id}/force-stop`, { method: 'POST' });
+}

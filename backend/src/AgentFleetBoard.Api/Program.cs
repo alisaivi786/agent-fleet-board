@@ -228,6 +228,42 @@ app.MapGet("/api/sessions/{id:guid}/log", async (Guid id, ISessionRegistry sessi
 app.MapPost("/api/sessions/{id:guid}/stop", (Guid id, ISessionRunner runner) =>
     runner.Stop(id) ? Results.NoContent() : Results.NotFound());
 
+// "Free" a session stuck as Running - covers the known limitation where an API restart loses
+// SessionRunner's in-memory tracking (see CLAUDE.md), so runner.Stop(id) alone can no longer find
+// the process. Tries to kill the OS process by its last-known id too (best-effort - it may already
+// be gone, or may have been recycled by the OS into an unrelated process, hence the narrow catch),
+// then always forces the DB row out of Running so the agent shows as free again either way.
+app.MapPost("/api/sessions/{id:guid}/force-stop", async (
+    Guid id, ISessionRunner runner, ISessionRegistry sessions, CancellationToken cancellationToken) =>
+{
+    AgentSession? session = await sessions.GetByIdAsync(id, cancellationToken);
+    if (session is null)
+    {
+        return Results.NotFound();
+    }
+
+    if (session.Status != SessionStatus.Running)
+    {
+        return Results.Ok(session);
+    }
+
+    if (!runner.Stop(id) && session.ProcessId is { } processId)
+    {
+        try
+        {
+            System.Diagnostics.Process.GetProcessById(processId).Kill(entireProcessTree: true);
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
+        {
+            // Already exited, or the pid was recycled into an unrelated process by the OS - either
+            // way there's nothing left to kill, so just fall through to freeing the DB row below.
+        }
+    }
+
+    await sessions.CompleteAsync(id, SessionStatus.Stopped, null, cancellationToken);
+    return Results.Ok(await sessions.GetByIdAsync(id, cancellationToken));
+});
+
 app.MapGet("/", () => Results.Redirect("/swagger"));
 
 app.Run();

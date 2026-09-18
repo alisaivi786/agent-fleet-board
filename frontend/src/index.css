@@ -598,6 +598,46 @@ h1 {
   padding: 8px 10px;
 }
 
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 100;
+}
+
+.modal-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 22px 24px;
+  max-width: 440px;
+  width: 100%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.modal-title {
+  font-weight: 650;
+  font-size: 1.05rem;
+  margin-bottom: 8px;
+}
+
+.modal-message {
+  color: var(--ink-dim);
+  font-size: 0.88rem;
+  line-height: 1.5;
+  margin: 0 0 20px;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
 .prompt-command code {
   flex: 1;
   font-family: var(--font-mono);
@@ -640,6 +680,7 @@ h1 {
 .session-log-titlebar {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
   padding: 6px 10px;
   background: var(--surface-alt);
@@ -648,6 +689,30 @@ h1 {
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--ink-dim);
+}
+
+.log-copy-btn {
+  font-family: var(--font-sans);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--ink-dim);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+
+.log-copy-btn:hover:not(:disabled) {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.log-copy-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 .session-log {

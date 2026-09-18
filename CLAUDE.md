@@ -209,14 +209,26 @@ the lifecycle. This is the point where the tool's security model changed shape �
 subprocess spawn is a different risk class than anything built before it. Still no auth: anyone who
 can reach this API can trigger a real coding session against any registered repo.
 
+**Confirmed working end-to-end (2026-09-18)** once the `claude` CLI was actually installed - see
+the blocking-issue note below for why that took a while. Real dispatch is no longer purely
+theoretical; it has actually run and completed a session successfully.
+
 **Known v1 limitations of real dispatch, not oversights:**
 - Running processes are tracked **in-memory only** (`SessionRunner`'s `ConcurrentDictionary`). An
-  API restart loses the ability to `Stop()` an in-flight session - its DB row and log file survive,
-  but it'll never transition out of `Running` status on its own after that.
-- `AgentCard.tsx` now has two toggles: "Prompt" (Phase 4, calls `prepare-prompt`, only ever formats
-  a copy/paste string) and "Run" (Phase 2c, opens `SessionPanel.tsx`, calls `sessions` - **actually
-  executes**, behind a `window.confirm`). Don't conflate the two when reading the UI code - they
-  hit different endpoints with very different blast radii.
+  API restart loses the ability for `Stop()` (now `POST /api/sessions/{id}/stop`) to find the OS
+  process - its DB row and log file survive, but it'd never transition out of `Running` on its own
+  after that. Mitigated, not fully solved, by `POST /api/sessions/{id}/force-stop`: it still tries
+  `runner.Stop(id)` first, but falls back to killing the last-known `ProcessId` directly via
+  `Process.GetProcessById` (best-effort - the OS may have recycled that pid into something
+  unrelated by then, hence the narrow catch), and *always* forces the DB row to `Stopped` either
+  way so the agent shows as free again. `SessionPanel.tsx`'s single "Stop" button calls this, not
+  the plain `stop` endpoint - always prefer `force-stop` from the UI.
+- `AgentCard.tsx` has a single "Assign work" toggle that opens `SessionPanel.tsx` — one form with
+  "Copy command" (formats a string, same as the old Phase 4 `prepare-prompt` action) and "Run now"
+  (behind a custom `ConfirmDialog.tsx`, not `window.confirm`) side by side. On open, the panel calls
+  `GET /api/agents/{id}/sessions` to recover that agent's most recent session, so reopening the
+  panel (or reloading the page) after a session was started can still see and force-free it — it's
+  not purely in-memory client state.
 
 **Blocking issue as of 2026-09-18, confirmed by the user - `claude` is not installed as a
 standalone CLI on this machine.** The user only uses Claude Code through the IDE/VS Code
