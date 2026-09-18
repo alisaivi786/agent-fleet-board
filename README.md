@@ -9,21 +9,38 @@ background coding agent, a regular feature branch, a teammate's clone — anythi
 
 ## Stack
 
-- `backend/` — ASP.NET Core (.NET 10) minimal API. Shells out to the local `git` binary against
-  server-configured paths only (never a client-supplied path) and returns JSON.
+- `backend/` — ASP.NET Core (.NET 10), split into four projects under `backend/src/`:
+  `AgentFleetBoard.Domain` (the `RepoDefinition`/`AgentDefinition` entities), `AgentFleetBoard.Persistence`
+  (EF Core + Npgsql, backed by Postgres), `AgentFleetBoard.Migrations` (FluentMigrator, run
+  separately from the API), and `AgentFleetBoard.Api` (the minimal API + Swagger). Shells out to
+  the local `git` binary against registry-resolved paths only (never a client-supplied path) and
+  returns JSON.
 - `frontend/` — React + Vite + TypeScript. Polls the API every 5s.
+- Postgres runs via `docker compose` — this tool doesn't ship its own DB.
 
 ## Running it locally
 
-**1. Run the backend:**
+**1. Start Postgres and run migrations:**
 
 ```bash
-cd backend
+cp .env.example .env   # edit POSTGRES_PASSWORD
+make db                # docker compose up -d postgres, localhost:5434
+make migrate           # creates the repos/agents tables
+```
+
+**2. Run the backend** (copy `backend/src/AgentFleetBoard.Api/appsettings.Local.json.example` to
+`appsettings.Local.json` first and fill in the same Postgres password):
+
+```bash
+cd backend/src/AgentFleetBoard.Api
 dotnet run --urls http://localhost:5299
 ```
 
-**2. Register a repo and an agent** through the API (persisted to `backend/data/repos.json` /
-`agents.json`, gitignored — your real filesystem paths never get committed):
+Swagger UI is at `http://localhost:5299/swagger`. There's no authentication yet — every endpoint
+is anonymous (see Security note below).
+
+**3. Register a repo and an agent** through the API (persisted in Postgres, not committed - your
+real filesystem paths never touch git):
 
 ```bash
 curl -X POST http://localhost:5299/api/repos \
@@ -45,7 +62,7 @@ curl -X POST http://localhost:5299/api/agents/<agent-id>/assign \
 /api/repos/{id}` and `DELETE /api/agents/{id}` remove entries; `POST /api/agents/{id}/unassign`
 clears an assignment without deleting the agent.
 
-**3. Run the frontend:**
+**4. Run the frontend:**
 
 ```bash
 cd frontend
@@ -57,9 +74,11 @@ Open the printed local URL (default `http://localhost:5173`).
 
 ## Security note
 
-This API has no authentication and, given a configured path, will run `git` against it and
-return whatever it finds (branch names, commit messages, file paths). **Only ever run it bound to
-localhost.** Do not deploy it publicly reachable as-is.
+This API has no authentication yet — every endpoint is intentionally anonymous for now (token-based
+auth and per-endpoint permissions are a planned, separate pass, not an oversight). Given a
+registered path, it will run `git` against it and return whatever it finds (branch names, commit
+messages, file paths). **Only ever run it bound to localhost.** Do not deploy it publicly
+reachable as-is.
 
 ## Status
 

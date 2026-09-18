@@ -1,6 +1,6 @@
-using AgentFleetBoard.Api.Models;
+using AgentFleetBoard.Domain;
 
-namespace AgentFleetBoard.Api.Services;
+namespace AgentFleetBoard.Persistence;
 
 public interface IRepoRegistry
 {

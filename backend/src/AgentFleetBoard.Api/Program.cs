@@ -1,11 +1,18 @@
 using AgentFleetBoard.Api.Models;
 using AgentFleetBoard.Api.Services;
+using AgentFleetBoard.Domain;
+using AgentFleetBoard.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddSingleton<IRepoRegistry, RepoRegistry>();
-builder.Services.AddSingleton<IAgentRegistry, AgentRegistry>();
+// Real connection strings are machine-specific and never committed - see appsettings.Local.json.example.
+builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
+
+builder.Services.AddPersistence(builder.Configuration);
 builder.Services.AddSingleton<IGitStatusReader, GitStatusReader>();
+
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
 const string devClientCors = "DevClient";
 builder.Services.AddCors(options => options.AddPolicy(devClientCors, policy =>
@@ -16,6 +23,11 @@ builder.Services.AddCors(options => options.AddPolicy(devClientCors, policy =>
 var app = builder.Build();
 
 app.UseCors(devClientCors);
+
+// No authentication yet - every endpoint below is intentionally anonymous. This is a local-only
+// tool (see CLAUDE.md); token-based auth and per-endpoint permissions are a later, separate pass.
+app.UseSwagger();
+app.UseSwaggerUI();
 
 app.MapGet("/api/repos", async (IRepoRegistry repos, CancellationToken cancellationToken) =>
     Results.Ok(await repos.GetAllAsync(cancellationToken)));
@@ -35,10 +47,16 @@ app.MapGet("/api/agents", async (
     IAgentRegistry agents, IRepoRegistry repos, IGitStatusReader reader, CancellationToken cancellationToken) =>
 {
     IReadOnlyList<AgentDefinition> agentDefinitions = await agents.GetAllAsync(cancellationToken);
+    IReadOnlyList<RepoDefinition> repoDefinitions = await repos.GetAllAsync(cancellationToken);
+    Dictionary<Guid, RepoDefinition> reposById = repoDefinitions.ToDictionary(r => r.Id);
+
+    // reader.ReadAsync shells out to git and doesn't touch the DbContext, so running these
+    // concurrently is safe - unlike the repo lookups above, which must happen on one shared,
+    // non-thread-safe DbContext instance before this point, not inside the parallel Select below.
     var statuses = await Task.WhenAll(agentDefinitions.Select(async agent =>
     {
-        RepoDefinition? repo = agent.AssignedRepoId is { } repoId
-            ? await repos.GetByIdAsync(repoId, cancellationToken)
+        RepoDefinition? repo = agent.AssignedRepoId is { } repoId && reposById.TryGetValue(repoId, out RepoDefinition? found)
+            ? found
             : null;
 
         if (repo is null)
@@ -74,7 +92,7 @@ app.MapPost("/api/agents/{id:guid}/unassign", async (Guid id, IAgentRegistry age
 app.MapDelete("/api/agents/{id:guid}", async (Guid id, IAgentRegistry agents, CancellationToken cancellationToken) =>
     await agents.RemoveAsync(id, cancellationToken) ? Results.NoContent() : Results.NotFound());
 
-app.MapGet("/", () => Results.Redirect("/api/agents"));
+app.MapGet("/", () => Results.Redirect("/swagger"));
 
 app.Run();
 

@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/AgentFleetBoard.Api/AgentFleetBoard.Api.csproj" />
+    <Project Path="src/AgentFleetBoard.Domain/AgentFleetBoard.Domain.csproj" />
+    <Project Path="src/AgentFleetBoard.Migrations/AgentFleetBoard.Migrations.csproj" />
+    <Project Path="src/AgentFleetBoard.Persistence/AgentFleetBoard.Persistence.csproj" />
+  </Folder>
+</Solution>

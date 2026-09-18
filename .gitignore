@@ -1,12 +1,15 @@
 # .NET
-backend/bin/
-backend/obj/
-backend/appsettings.Local.json
+**/bin/
+**/obj/
+backend/**/appsettings.Local.json
 backend/data/
 
 # Node (frontend has its own .gitignore too, this covers root-level runs)
 **/node_modules/
 **/dist/
+
+# Env / secrets
+.env
 
 # Editors / OS
 .vs/

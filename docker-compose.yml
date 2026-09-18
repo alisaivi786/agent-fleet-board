@@ -1,0 +1,22 @@
+name: agent-fleet-board
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: agent-fleet-board-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-agentfleetboard}
+      POSTGRES_USER: ${POSTGRES_USER:-agentfleetboard}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    ports:
+      - "${POSTGRES_PORT:-5434}:5432"
+    volumes:
+      - agent-fleet-board-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-agentfleetboard} -d ${POSTGRES_DB:-agentfleetboard}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  agent-fleet-board-pgdata:
