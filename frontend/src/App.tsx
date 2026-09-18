@@ -1,20 +1,28 @@
 import { useCallback, useEffect, useState } from 'react';
-import { fetchAgents, fetchProjects, fetchRepos } from './api';
-import type { AgentStatus, Project, RepoDefinition } from './types';
-import { isIdle, isWorking } from './agentStatus';
-import { AgentCard } from './components/AgentCard';
-import { RepoManager } from './components/RepoManager';
-import { AgentManager } from './components/AgentManager';
-import { ProjectManager } from './components/ProjectManager';
+import { fetchActivity, fetchAgents, fetchProjects, fetchRepos } from './api';
+import type { AgentStatus, Project, RepoDefinition, SessionActivity } from './types';
+import { Sidebar, type Tab } from './components/Sidebar';
 import { ProjectShowcase } from './components/ProjectShowcase';
+import { DashboardPage } from './pages/DashboardPage';
+import { RepositoriesPage } from './pages/RepositoriesPage';
+import { AgentsPage } from './pages/AgentsPage';
+import { ActivityPage } from './pages/ActivityPage';
+import { ManagePage } from './pages/ManagePage';
 import { MoonIcon, PauseIcon, PlayIcon, SunIcon } from './icons';
 
 const POLL_OPTIONS_MS = [2000, 5000, 10000, 30000, 60000];
 const THEME_STORAGE_KEY = 'afb-theme';
 
-type Tab = 'roster' | 'projects' | 'manage';
-type StatusFilter = 'all' | 'idle' | 'working' | 'error';
 type Theme = 'light' | 'dark';
+
+const TAB_TITLES: Record<Tab, string> = {
+  dashboard: 'Dashboard',
+  repositories: 'Repositories',
+  agents: 'Agents',
+  projects: 'Projects',
+  activity: 'Activity',
+  manage: 'Manage',
+};
 
 function initialTheme(): Theme {
   try {
@@ -27,13 +35,12 @@ function initialTheme(): Theme {
 }
 
 export default function App() {
-  const [tab, setTab] = useState<Tab>('roster');
+  const [tab, setTab] = useState<Tab>('dashboard');
   const [agents, setAgents] = useState<AgentStatus[] | null>(null);
   const [repos, setRepos] = useState<RepoDefinition[] | null>(null);
   const [projects, setProjects] = useState<Project[] | null>(null);
+  const [activity, setActivity] = useState<SessionActivity[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [query, setQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [theme, setTheme] = useState<Theme>(initialTheme);
   const [pollIntervalMs, setPollIntervalMs] = useState(5000);
   const [pollActive, setPollActive] = useState(true);
@@ -49,14 +56,16 @@ export default function App() {
 
   const refetch = useCallback(async (signal?: AbortSignal) => {
     try {
-      const [agentData, repoData, projectData] = await Promise.all([
+      const [agentData, repoData, projectData, activityData] = await Promise.all([
         fetchAgents(signal),
         fetchRepos(signal),
         fetchProjects(signal),
+        fetchActivity(signal),
       ]);
       setAgents(agentData);
       setRepos(repoData);
       setProjects(projectData);
+      setActivity(activityData);
       setError(null);
     } catch (err) {
       if (!(err instanceof DOMException && err.name === 'AbortError')) {
@@ -87,163 +96,69 @@ export default function App() {
     if (next) refetch();
   }
 
-  const idleCount = agents?.filter(isIdle).length ?? 0;
-  const workingCount = agents?.filter(isWorking).length ?? 0;
-  const changedFileCount = agents?.reduce((sum, a) => sum + a.changedFiles.length, 0) ?? 0;
-
-  const filteredAgents =
-    agents?.filter((agent) => {
-      if (statusFilter === 'idle' && !isIdle(agent)) return false;
-      if (statusFilter === 'working' && !isWorking(agent)) return false;
-      if (statusFilter === 'error' && !agent.error) return false;
-      if (!query.trim()) return true;
-      const q = query.trim().toLowerCase();
-      return (
-        agent.name.toLowerCase().includes(q) ||
-        agent.role.toLowerCase().includes(q) ||
-        (agent.repoName ?? '').toLowerCase().includes(q) ||
-        (agent.branch ?? '').toLowerCase().includes(q)
-      );
-    }) ?? null;
+  const loading = !agents || !repos || !projects || !activity;
 
   return (
-    <div className="wrap">
-      <header className="top">
-        <div>
-          <h1>Agent Fleet Board</h1>
-          <p className="sub">Real-time git status for every configured agent working tree.</p>
-        </div>
-        <div className="top-controls">
-          <div className="poll-control">
+    <div className="app-shell">
+      <Sidebar tab={tab} onSelect={setTab} />
+      <div className="app-main">
+        <header className="top-bar">
+          <h1>{TAB_TITLES[tab]}</h1>
+          <div className="top-controls">
+            <div className="poll-control">
+              <button
+                type="button"
+                className="icon-btn"
+                onClick={togglePolling}
+                title={pollActive ? 'Pause polling' : 'Resume polling'}
+              >
+                {pollActive ? <PauseIcon /> : <PlayIcon />}
+              </button>
+              <select
+                className="poll-select"
+                value={pollIntervalMs}
+                onChange={(e) => setPollIntervalMs(Number(e.target.value))}
+                title="Poll interval"
+              >
+                {POLL_OPTIONS_MS.map((ms) => (
+                  <option value={ms} key={ms}>
+                    every {ms / 1000}s
+                  </option>
+                ))}
+              </select>
+              <span className="repo-tag">{pollActive ? 'live' : 'paused'}</span>
+            </div>
             <button
               type="button"
-              className="icon-btn"
-              onClick={togglePolling}
-              title={pollActive ? 'Pause polling' : 'Resume polling'}
+              className="icon-btn theme-toggle"
+              onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
+              title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
             >
-              {pollActive ? <PauseIcon /> : <PlayIcon />}
+              {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
             </button>
-            <select
-              className="poll-select"
-              value={pollIntervalMs}
-              onChange={(e) => setPollIntervalMs(Number(e.target.value))}
-              title="Poll interval"
-            >
-              {POLL_OPTIONS_MS.map((ms) => (
-                <option value={ms} key={ms}>
-                  every {ms / 1000}s
-                </option>
-              ))}
-            </select>
-            <span className="repo-tag">{pollActive ? 'live' : 'paused'}</span>
           </div>
-          <button
-            type="button"
-            className="icon-btn theme-toggle"
-            onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
-            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-          >
-            {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
-          </button>
+        </header>
+
+        <div className="app-content">
+          {error && <div className="error-banner">{error}</div>}
+
+          {loading ? (
+            <p className="loading">Loading fleet status…</p>
+          ) : tab === 'dashboard' ? (
+            <DashboardPage agents={agents} repos={repos} projects={projects} activity={activity} onChange={refetch} onNavigate={setTab} />
+          ) : tab === 'repositories' ? (
+            <RepositoriesPage repos={repos} agents={agents} projects={projects} />
+          ) : tab === 'agents' ? (
+            <AgentsPage agents={agents} repos={repos} onChange={refetch} />
+          ) : tab === 'projects' ? (
+            <ProjectShowcase projects={projects} agents={agents} repos={repos} />
+          ) : tab === 'activity' ? (
+            <ActivityPage activity={activity} />
+          ) : (
+            <ManagePage agents={agents} repos={repos} projects={projects} onChange={refetch} />
+          )}
         </div>
-      </header>
-
-      <div className="tab-row">
-        <button className={tab === 'roster' ? 'tab active' : 'tab'} onClick={() => setTab('roster')}>
-          Roster
-        </button>
-        <button className={tab === 'projects' ? 'tab active' : 'tab'} onClick={() => setTab('projects')}>
-          Projects
-        </button>
-        <button className={tab === 'manage' ? 'tab active' : 'tab'} onClick={() => setTab('manage')}>
-          Manage
-        </button>
       </div>
-
-      {error && <div className="error-banner">{error}</div>}
-
-      {tab === 'roster' ? (
-        !agents ? (
-          <p className="loading">Loading fleet status…</p>
-        ) : agents.length === 0 ? (
-          <p className="loading">
-            No agents configured yet. Switch to the <strong>Manage</strong> tab to register a repo and
-            create an agent.
-          </p>
-        ) : !repos ? (
-          <p className="loading">Loading registry…</p>
-        ) : (
-          <>
-            <div className="stat-row">
-              <button
-                type="button"
-                className={`stat stat-filter ${statusFilter === 'all' ? 'active' : ''}`}
-                onClick={() => setStatusFilter('all')}
-              >
-                <div className="num">{agents.length}</div>
-                <div className="label">Agents configured</div>
-              </button>
-              <button
-                type="button"
-                className={`stat stat-filter ${statusFilter === 'idle' ? 'active' : ''}`}
-                onClick={() => setStatusFilter((f) => (f === 'idle' ? 'all' : 'idle'))}
-              >
-                <div className="num">{idleCount}</div>
-                <div className="label">Idle</div>
-              </button>
-              <button
-                type="button"
-                className={`stat stat-filter ${statusFilter === 'working' ? 'active' : ''}`}
-                onClick={() => setStatusFilter((f) => (f === 'working' ? 'all' : 'working'))}
-              >
-                <div className="num">{workingCount}</div>
-                <div className="label">Working</div>
-              </button>
-              <div className="stat">
-                <div className="num">{changedFileCount}</div>
-                <div className="label">Uncommitted files</div>
-              </div>
-            </div>
-
-            <div className="roster-toolbar">
-              <p className="section-label">
-                Roster{filteredAgents && filteredAgents.length !== agents.length ? ` (${filteredAgents.length} of ${agents.length})` : ''}
-              </p>
-              <input
-                className="roster-search"
-                type="search"
-                placeholder="Filter by name, role, repo, or branch…"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-              />
-            </div>
-
-            {filteredAgents && filteredAgents.length === 0 ? (
-              <p className="loading">No agents match this filter.</p>
-            ) : (
-              <div className="roster">
-                {filteredAgents?.map((agent) => (
-                  <AgentCard agent={agent} repos={repos} onChange={refetch} key={agent.id} />
-                ))}
-              </div>
-            )}
-          </>
-        )
-      ) : tab === 'projects' ? (
-        !agents || !repos || !projects ? (
-          <p className="loading">Loading registry…</p>
-        ) : (
-          <ProjectShowcase projects={projects} agents={agents} repos={repos} />
-        )
-      ) : !agents || !repos || !projects ? (
-        <p className="loading">Loading registry…</p>
-      ) : (
-        <>
-          <RepoManager repos={repos} onChange={refetch} />
-          <ProjectManager projects={projects} repos={repos} onChange={refetch} />
-          <AgentManager agents={agents} repos={repos} projects={projects} onChange={refetch} />
-        </>
-      )}
     </div>
   );
 }

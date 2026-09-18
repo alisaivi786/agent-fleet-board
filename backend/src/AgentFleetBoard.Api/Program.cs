@@ -12,6 +12,8 @@ builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, relo
 builder.Services.AddPersistence(builder.Configuration);
 builder.Services.AddSingleton<IGitStatusReader, GitStatusReader>();
 builder.Services.AddSingleton<ISessionRunner, SessionRunner>();
+builder.Services.AddSingleton<SystemMetricsSampler>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<SystemMetricsSampler>());
 
 // Without this, AgentSession.Status (a C# enum) serializes as a raw int - the frontend needs the
 // name ("Running"/"Succeeded"/...), not the ordinal.
@@ -193,6 +195,23 @@ app.MapPost("/api/agents/{id:guid}/sessions", async (
 
 app.MapGet("/api/agents/{id:guid}/sessions", async (Guid id, ISessionRegistry sessions, CancellationToken cancellationToken) =>
     Results.Ok(await sessions.GetForAgentAsync(id, cancellationToken)));
+
+// Backs the Activity Log - recent sessions across every agent, newest first, joined with agent
+// name for display. Capped at 100; this is a local dev tool with modest session volume, not a
+// paginated audit log.
+app.MapGet("/api/sessions", async (IAgentRegistry agents, ISessionRegistry sessions, CancellationToken cancellationToken) =>
+{
+    IReadOnlyList<AgentSession> recent = await sessions.GetRecentAsync(100, cancellationToken);
+    IReadOnlyList<AgentDefinition> agentDefinitions = await agents.GetAllAsync(cancellationToken);
+    Dictionary<Guid, string> namesById = agentDefinitions.ToDictionary(a => a.Id, a => a.Name);
+
+    var activity = recent.Select(s => new SessionActivity(
+        s.Id, s.AgentId, namesById.GetValueOrDefault(s.AgentId, "Unknown agent"), s.RepoId, s.RepoPath,
+        s.Prompt, s.Status, s.StartedAtUtc, s.EndedAtUtc, s.ExitCode));
+    return Results.Ok(activity);
+});
+
+app.MapGet("/api/system/metrics", (SystemMetricsSampler sampler) => Results.Ok(sampler.GetLatest()));
 
 app.MapGet("/api/sessions/{id:guid}", async (Guid id, ISessionRegistry sessions, CancellationToken cancellationToken) =>
 {

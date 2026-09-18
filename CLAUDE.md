@@ -29,9 +29,22 @@ agent-fleet-board/
       AgentFleetBoard.Persistence   DbContext, IRepoRegistry/IAgentRegistry (EF Core + Npgsql)
       AgentFleetBoard.Migrations    FluentMigrator console app, run separately from the API
       AgentFleetBoard.Api           minimal API + Swagger, references Domain + Persistence
-  frontend/   React + Vite + TypeScript — polls GET /api/agents every 5s, Manage tab for CRUD
+  frontend/   React + Vite + TypeScript — sidebar-nav shell (Sidebar.tsx), polls every N seconds
   Makefile    make db | migrate | backend | frontend | dev | install | build
 ```
+
+**Frontend nav (2026-09-18 redesign):** `App.tsx` is a thin shell (fetch/poll all four collections -
+agents, repos, projects, activity - then render a page by `Tab`) around `Sidebar.tsx`. Pages live in
+`frontend/src/pages/`: `DashboardPage` (stat cards + real Repositories/Activity/System-Health/Active-
+and-Idle-Agents panels, all linking into the pages below rather than duplicating their forms),
+`RepositoriesPage` (read-only repo/agent/project cross-reference table), `AgentsPage` (the roster
+grid - search, status-filter stat tiles, `AgentCard`s - unchanged from before, just extracted out of
+`App.tsx`), `ActivityPage` (full `ActivityFeed`), and `ManagePage` (unchanged: `RepoManager` +
+`ProjectManager` + `AgentManager`, i.e. all create/delete forms still live here, not duplicated per
+page). `Projects` renders `ProjectShowcase` directly, no wrapper needed. **Deliberately dropped from
+the design brief that inspired this:** a "Queue Depth"/"Agent Heartbeat" system-health panel with
+made-up numbers - this app doesn't have a scheduler or heartbeat mechanism, so it doesn't pretend to.
+CPU/RAM in `SystemHealthPanel.tsx` are real host metrics (see below), kept because they're real.
 
 This mirrors `D:\Code\FMS-Prime\src`'s layered style (Domain/Persistence/Migrations/Api as
 separate projects) scaled down to what this tool actually needs - no Application/CQRS layer, no
@@ -98,6 +111,15 @@ would justify them. Add layers when something concrete needs them, not preemptiv
 - **No authentication.** Every endpoint is anonymous by explicit decision, to be revisited once
   token-based auth and permissions are actually needed — don't add auth speculatively before that
   ask comes in.
+- **`GET /api/sessions`** (2026-09-18): recent sessions across every agent (capped at 100, newest
+  first), joined with agent name for display - backs the Activity Log/Dashboard, not just the
+  per-agent `GET /api/agents/{id}/sessions`.
+- **`GET /api/system/metrics`** (2026-09-18): real host CPU/RAM from `SystemMetricsSampler`, a
+  `BackgroundService` sampling Win32 `GetSystemTimes`/`GlobalMemoryStatusEx` via raw P/Invoke every
+  2s (no `PerformanceCounter` package needed). Windows-only; reports `{ supported: false, ... }`
+  elsewhere instead of throwing. **This is the one piece of the dashboard mockup that got a real
+  implementation instead of being dropped** - see the Frontend nav note above for what else from
+  that mockup was intentionally left out because nothing here produces that data.
 
 ## Security (read before touching the backend)
 

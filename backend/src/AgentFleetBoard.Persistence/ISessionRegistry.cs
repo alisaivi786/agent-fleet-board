@@ -10,6 +10,9 @@ public interface ISessionRegistry
 
     Task<IReadOnlyList<AgentSession>> GetForAgentAsync(Guid agentId, CancellationToken cancellationToken);
 
+    /// <summary>Most recent sessions across every agent, newest first, capped at <paramref name="limit"/> - backs the Activity Log.</summary>
+    Task<IReadOnlyList<AgentSession>> GetRecentAsync(int limit, CancellationToken cancellationToken);
+
     Task SetRunningAsync(Guid id, int processId, CancellationToken cancellationToken);
 
     Task CompleteAsync(Guid id, SessionStatus status, int? exitCode, CancellationToken cancellationToken);

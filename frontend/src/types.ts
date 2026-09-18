@@ -56,3 +56,23 @@ export interface AgentSession {
   endedAtUtc: string | null;
   exitCode: number | null;
 }
+
+export interface SessionActivity {
+  id: string;
+  agentId: string;
+  agentName: string;
+  repoId: string;
+  repoPath: string;
+  prompt: string;
+  status: SessionStatus;
+  startedAtUtc: string;
+  endedAtUtc: string | null;
+  exitCode: number | null;
+}
+
+export interface SystemMetrics {
+  supported: boolean;
+  cpuPercent: number | null;
+  memoryUsedMb: number | null;
+  memoryTotalMb: number | null;
+}

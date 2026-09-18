@@ -33,6 +33,12 @@ public sealed class SessionRegistry(AgentFleetBoardDbContext db) : ISessionRegis
             .OrderByDescending(s => s.StartedAtUtc)
             .ToListAsync(cancellationToken);
 
+    public async Task<IReadOnlyList<AgentSession>> GetRecentAsync(int limit, CancellationToken cancellationToken)
+        => await db.Sessions.AsNoTracking()
+            .OrderByDescending(s => s.StartedAtUtc)
+            .Take(limit)
+            .ToListAsync(cancellationToken);
+
     public async Task SetRunningAsync(Guid id, int processId, CancellationToken cancellationToken)
     {
         AgentSession? session = await db.Sessions.FirstOrDefaultAsync(s => s.Id == id, cancellationToken);

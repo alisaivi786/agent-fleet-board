@@ -1,4 +1,12 @@
-import type { AgentDefinition, AgentSession, AgentStatus, Project, RepoDefinition } from './types';
+import type {
+  AgentDefinition,
+  AgentSession,
+  AgentStatus,
+  Project,
+  RepoDefinition,
+  SessionActivity,
+  SystemMetrics,
+} from './types';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5390';
 
@@ -99,4 +107,12 @@ export function stopSession(id: string): Promise<void> {
 // the OS process (see CLAUDE.md), unlike stopSession above which only works for a tracked process.
 export function forceStopSession(id: string): Promise<AgentSession> {
   return request(`/api/sessions/${id}/force-stop`, { method: 'POST' });
+}
+
+export function fetchActivity(signal?: AbortSignal): Promise<SessionActivity[]> {
+  return request('/api/sessions', { signal });
+}
+
+export function fetchSystemMetrics(signal?: AbortSignal): Promise<SystemMetrics> {
+  return request('/api/system/metrics', { signal });
 }
