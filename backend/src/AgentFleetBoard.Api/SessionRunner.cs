@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using AgentFleetBoard.Domain;
 using AgentFleetBoard.Persistence;
 using Microsoft.Extensions.DependencyInjection;
@@ -33,15 +34,12 @@ public sealed class SessionRunner(IServiceScopeFactory scopeFactory, ILogger<Ses
         Directory.CreateDirectory(Path.GetDirectoryName(logPath)!);
         var logWriter = new StreamWriter(logPath, append: false) { AutoFlush = true };
 
-        var startInfo = new ProcessStartInfo("claude")
-        {
-            WorkingDirectory = repoPath,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-        };
-        startInfo.ArgumentList.Add("-p");
-        startInfo.ArgumentList.Add(prompt);
+        ProcessStartInfo startInfo = BuildStartInfo();
+        startInfo.WorkingDirectory = repoPath;
+        startInfo.RedirectStandardInput = true;
+        startInfo.RedirectStandardOutput = true;
+        startInfo.RedirectStandardError = true;
+        startInfo.UseShellExecute = false;
 
         var process = new Process { StartInfo = startInfo, EnableRaisingEvents = true };
         var runningProcess = new RunningProcess(process, logWriter);
@@ -50,6 +48,10 @@ public sealed class SessionRunner(IServiceScopeFactory scopeFactory, ILogger<Ses
         process.Exited += (_, _) => OnExited(sessionId, runningProcess);
 
         process.Start();
+        // The prompt is delivered over stdin, never as part of the cmd.exe command line above -
+        // see BuildStartInfo's doc comment for why that matters.
+        process.StandardInput.Write(prompt);
+        process.StandardInput.Close();
         process.BeginOutputReadLine();
         process.BeginErrorReadLine();
         running[sessionId] = runningProcess;
@@ -74,6 +76,32 @@ public sealed class SessionRunner(IServiceScopeFactory scopeFactory, ILogger<Ses
             // Already exited between the lookup and the kill attempt.
             return false;
         }
+    }
+
+    /// <summary>
+    /// `claude` is typically an npm-installed shim (`claude.cmd`/`claude.ps1` on Windows), not a
+    /// bare `.exe`. `Process.Start` with `UseShellExecute = false` uses CreateProcess directly,
+    /// which - unlike a real shell - does not search PATHEXT or resolve `.cmd`/`.bat` shims by a
+    /// bare name; that's exactly the "cannot find the file specified" Win32Exception this fixes.
+    /// Routing through `cmd.exe /c` resolves PATH and PATHEXT the same way a terminal typing
+    /// `claude` would - but the command line built here is fixed and never includes the prompt:
+    /// letting cmd.exe re-parse untrusted text as part of its own command grammar (`&`, `|`, `%`,
+    /// `^`, ...) would be a command-injection surface. The prompt is delivered over stdin instead
+    /// (see Start()), which cmd.exe/claude never interpret as command syntax.
+    /// </summary>
+    private static ProcessStartInfo BuildStartInfo()
+    {
+        bool isWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
+        var info = new ProcessStartInfo(isWindows ? "cmd.exe" : "claude");
+
+        if (isWindows)
+        {
+            info.ArgumentList.Add("/c");
+            info.ArgumentList.Add("claude");
+        }
+
+        info.ArgumentList.Add("-p");
+        return info;
     }
 
     private static void WriteLine(RunningProcess runningProcess, string? line)

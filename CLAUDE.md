@@ -169,14 +169,41 @@ can reach this API can trigger a real coding session against any registered repo
 - Running processes are tracked **in-memory only** (`SessionRunner`'s `ConcurrentDictionary`). An
   API restart loses the ability to `Stop()` an in-flight session - its DB row and log file survive,
   but it'll never transition out of `Running` status on its own after that.
-- **Neither the API nor the UI for this has ever been run end-to-end.** Starting the API to test
-  it autonomously was blocked by the harness's own safety classifier ("Create Unsafe Agents") once
-  the code could spawn `claude` subprocesses - by design, not a bug to work around. The build
-  compiled clean, the migration applied clean, and the frontend typechecks/lints/builds clean, but
-  the actual dispatch path (spawn → log capture → exit → status update, and the UI polling loop
-  that watches it) needs a live test by a human before any of this is trusted. **Do that before
-  building further on top of it, and before assuming the "Run" button in the UI works.**
 - `AgentCard.tsx` now has two toggles: "Prompt" (Phase 4, calls `prepare-prompt`, only ever formats
   a copy/paste string) and "Run" (Phase 2c, opens `SessionPanel.tsx`, calls `sessions` - **actually
   executes**, behind a `window.confirm`). Don't conflate the two when reading the UI code - they
   hit different endpoints with very different blast radii.
+
+**Blocking issue as of 2026-09-18, confirmed by the user - `claude` is not installed as a
+standalone CLI on this machine.** The user only uses Claude Code through the IDE/VS Code
+extension, not a separate terminal binary. `SessionRunner` can be fixed for every *mechanical*
+Process.Start issue (see below) and it will still fail with "'claude' is not recognized..." until
+a real `claude` CLI exists on PATH. **Do not spend more time debugging `SessionRunner`'s spawn
+mechanics without first confirming the CLI is actually installed and on PATH** - re-diagnose by
+running `claude --version` in an ordinary terminal before touching this code again. This is the
+reason real dispatch has still never been exercised end-to-end, on top of the earlier
+harness-safety-classifier blocker (see below) that prevented testing it from this session anyway.
+
+Two mechanical bugs were found and fixed in `SessionRunner.BuildStartInfo`/`Start` while
+diagnosing the above (neither is sufficient on its own without the CLI existing, but both are real
+fixes worth keeping):
+1. `Process.Start` with `UseShellExecute = false` uses `CreateProcess` directly, which - unlike a
+   real shell - doesn't search `PATHEXT` or resolve `.cmd`/`.bat` npm shims by a bare name like
+   `"claude"`. Fixed by routing through `cmd.exe /c claude ...` on Windows, which resolves PATH and
+   PATHEXT the way a terminal would.
+2. That fix initially passed the user's prompt as a literal `cmd.exe` command-line argument, which
+   would let cmd.exe's own quoting rules (`&`, `|`, `%`, `^`, ...) reinterpret untrusted prompt text
+   as command syntax - a command-injection surface, correctly flagged by the harness's safety
+   classifier ("Create RCE Surface") when committing it. Fixed by keeping the `cmd.exe`/`claude -p`
+   command line fixed (no user input in it at all) and delivering the prompt over the child
+   process's redirected stdin instead - a data channel that's never parsed as command syntax by
+   anything.
+
+**Separately, starting the API to test any of this autonomously was blocked by the harness's own
+safety classifier ("Create Unsafe Agents") once the code could spawn `claude` subprocesses** - by
+design, not a bug to work around. The build compiled clean, the migration applied clean, and the
+frontend typechecks/lints/builds clean, but the actual dispatch path (spawn → log capture → exit →
+status update, and the UI polling loop that watches it) still needs a live test by a human - and
+that test will keep failing on "'claude' is not recognized" until the CLI is actually installed.
+**Do not assume the "Run" button in the UI works until both issues are resolved and a human has
+clicked it.**
