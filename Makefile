@@ -35,9 +35,7 @@ frontend:
 # Runs backend and frontend together (Ctrl+C stops both)
 dev:
 	@echo "Starting backend on :5299 and frontend on :5173 - Ctrl+C stops both"
-	@( cd backend && dotnet run --urls http://localhost:5299 ) & \
-	( cd frontend && npm run dev ) & \
-	wait
+	"$(MAKE)" -j2 backend frontend
 
 # Production builds for both projects
 build:
