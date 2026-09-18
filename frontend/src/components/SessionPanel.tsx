@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { fetchSession, fetchSessionLog, fetchSessions, forceStopSession, preparePrompt, startSession } from '../api';
 import type { AgentSession } from '../types';
-import { ConfirmDialog } from './ConfirmDialog';
 
 const POLL_INTERVAL_MS = 2000;
 
@@ -18,7 +17,7 @@ function statusLabel(status: AgentSession['status']): string {
   }
 }
 
-export function SessionPanel({ agentId, repoName }: { agentId: string; repoName: string | null }) {
+export function SessionPanel({ agentId }: { agentId: string }) {
   const [prompt, setPrompt] = useState('');
   const [session, setSession] = useState<AgentSession | null>(null);
   const [log, setLog] = useState('');
@@ -28,7 +27,6 @@ export function SessionPanel({ agentId, repoName }: { agentId: string; repoName:
   const [copied, setCopied] = useState(false);
   const [logCopied, setLogCopied] = useState(false);
   const [pollWarning, setPollWarning] = useState<string | null>(null);
-  const [confirmOpen, setConfirmOpen] = useState(false);
   const sessionIdRef = useRef<string | null>(null);
   const pollFailureCountRef = useRef(0);
 
@@ -118,13 +116,8 @@ export function SessionPanel({ agentId, repoName }: { agentId: string; repoName:
     }
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setConfirmOpen(true);
-  }
-
-  async function handleConfirmStart() {
-    setConfirmOpen(false);
     setBusy(true);
     setError(null);
     setPollWarning(null);
@@ -182,16 +175,6 @@ export function SessionPanel({ agentId, repoName }: { agentId: string; repoName:
         )}
         {error && <div className="error-banner">{error}</div>}
       </form>
-
-      {confirmOpen && (
-        <ConfirmDialog
-          title="Run this agent for real?"
-          message={`This will actually run "claude" against ${repoName ?? 'this repo'} with the prompt above and may change files.`}
-          confirmLabel="Run now"
-          onConfirm={handleConfirmStart}
-          onCancel={() => setConfirmOpen(false)}
-        />
-      )}
 
       {session && (
         <div className="session-status">

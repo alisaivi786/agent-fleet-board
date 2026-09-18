@@ -3,6 +3,7 @@ import { fetchActivity, fetchAgents, fetchProjects, fetchRepos } from './api';
 import type { AgentStatus, Project, RepoDefinition, SessionActivity } from './types';
 import { Sidebar, type Tab } from './components/Sidebar';
 import { ProjectShowcase } from './components/ProjectShowcase';
+import { AgentMapPage } from './pages/AgentMapPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { RepositoriesPage } from './pages/RepositoriesPage';
 import { AgentsPage } from './pages/AgentsPage';
@@ -20,6 +21,7 @@ const TAB_TITLES: Record<Tab, string> = {
   dashboard: 'Dashboard',
   repositories: 'Repositories',
   agents: 'Agents',
+  'agent-map': 'Agent Map',
   projects: 'Projects',
   activity: 'Activity',
   manage: 'Manage',
@@ -114,6 +116,7 @@ export default function App() {
   }
 
   const loading = !agents || !repos || !projects || !activity;
+  const backendStatus = error ? 'down' : pollActive ? 'live' : 'paused';
 
   return (
     <div className="app-shell">
@@ -138,7 +141,10 @@ export default function App() {
                 title="Poll interval"
                 options={POLL_OPTIONS_MS.map((ms) => ({ value: String(ms), label: `${ms / 1000}s` }))}
               />
-              <span className="repo-tag">{pollActive ? 'live' : 'paused'}</span>
+              <span className={`backend-status ${backendStatus}`}>
+                <span />
+                {backendStatus}
+              </span>
             </div>
             <button
               type="button"
@@ -169,6 +175,8 @@ export default function App() {
             <RepositoriesPage repos={repos} agents={agents} />
           ) : tab === 'agents' ? (
             <AgentsPage agents={agents} repos={repos} onChange={refetch} />
+          ) : tab === 'agent-map' ? (
+            <AgentMapPage projects={projects} agents={agents} activity={activity} />
           ) : tab === 'projects' ? (
             <ProjectShowcase projects={projects} agents={agents} activity={activity} />
           ) : tab === 'activity' ? (

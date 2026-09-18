@@ -74,6 +74,7 @@ export interface SessionActivity {
   endedAtUtc: string | null;
   durationMs: number | null;
   exitCode: number | null;
+  failureSummary: string | null;
 }
 
 export interface SystemMetrics {

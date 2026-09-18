@@ -17,4 +17,5 @@ public sealed record SessionActivity(
     DateTimeOffset StartedAtUtc,
     DateTimeOffset? EndedAtUtc,
     long? DurationMs,
-    int? ExitCode);
+    int? ExitCode,
+    string? FailureSummary);

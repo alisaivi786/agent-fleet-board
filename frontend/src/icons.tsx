@@ -82,6 +82,18 @@ export function ProjectsIcon({ size = 18 }: IconProps) {
   );
 }
 
+export function AgentMapIcon({ size = 18 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" {...common}>
+      <circle cx="6" cy="7" r="2.5" />
+      <circle cx="18" cy="6" r="2.5" />
+      <circle cx="17" cy="18" r="2.5" />
+      <circle cx="7" cy="17" r="2.5" />
+      <path d="M8.2 8.1 15.8 16M15.6 7.3 8.4 15.7M8.5 7h7" />
+    </svg>
+  );
+}
+
 export function ActivityIcon({ size = 18 }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" {...common}>

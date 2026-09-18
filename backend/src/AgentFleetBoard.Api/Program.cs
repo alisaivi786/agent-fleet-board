@@ -271,7 +271,7 @@ app.MapGet("/api/sessions", async (
     Dictionary<Guid, RepoDefinition> reposById = repoDefinitions.ToDictionary(r => r.Id);
     Dictionary<Guid, Project> projectsById = projectDefinitions.ToDictionary(p => p.Id);
 
-    var activity = recent.Select(s =>
+    var activity = await Task.WhenAll(recent.Select(async s =>
     {
         agentsById.TryGetValue(s.AgentId, out AgentDefinition? agent);
         reposById.TryGetValue(s.RepoId, out RepoDefinition? repo);
@@ -280,6 +280,9 @@ app.MapGet("/api/sessions", async (
             : null;
         long? durationMs = s.EndedAtUtc is { } endedAt
             ? Math.Max(0, (long)(endedAt - s.StartedAtUtc).TotalMilliseconds)
+            : null;
+        string? failureSummary = s.Status == SessionStatus.Failed
+            ? await FailureSummaryReader.ReadAsync(s.LogPath, cancellationToken)
             : null;
 
         return new SessionActivity(
@@ -296,8 +299,9 @@ app.MapGet("/api/sessions", async (
             s.StartedAtUtc,
             s.EndedAtUtc,
             durationMs,
-            s.ExitCode);
-    });
+            s.ExitCode,
+            failureSummary);
+    }));
     return Results.Ok(activity);
 });
 
@@ -390,3 +394,36 @@ internal sealed record CreateProjectRequest(string Name, Guid? RepoId, string? B
 internal sealed record AssignAgentProjectRequest(Guid ProjectId);
 
 internal sealed record StartSessionRequest(string Prompt);
+
+internal static class FailureSummaryReader
+{
+    public static async Task<string?> ReadAsync(string logPath, CancellationToken cancellationToken)
+    {
+        if (!File.Exists(logPath))
+        {
+            return null;
+        }
+
+        string log;
+        using (var stream = new FileStream(logPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+        using (var reader = new StreamReader(stream))
+        {
+            log = await reader.ReadToEndAsync(cancellationToken);
+        }
+
+        string[] lines = log
+            .Split('\n')
+            .Select(line => line.Trim())
+            .Where(line => line.Length > 0)
+            .TakeLast(8)
+            .ToArray();
+
+        if (lines.Length == 0)
+        {
+            return null;
+        }
+
+        string summary = string.Join(Environment.NewLine, lines);
+        return summary.Length <= 900 ? summary : summary[^900..];
+    }
+}

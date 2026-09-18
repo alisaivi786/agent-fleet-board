@@ -261,6 +261,21 @@ can reach this API can trigger a real coding session against any registered repo
 the blocking-issue note below for why that took a while. Real dispatch is no longer purely
 theoretical; it has actually run and completed a session successfully.
 
+**`--dangerously-skip-permissions` added to the spawned command (2026-09-18), by explicit user
+request.** Dispatched sessions run fully headless - `SessionRunner.Start` only ever writes the
+prompt to stdin once, then closes it, so there is no TTY for Claude to ask a permission question
+on. Without this flag, the CLI would print its permission question to stdout and exit 0 having
+done nothing real (the log would show it asking to proceed, then stopping) - and since exit 0 maps
+to `Succeeded`, that silent no-op was being recorded as a successful run. The flag also happens to
+bypass the workspace-trust gate that was separately causing `.claude/settings.json`'s
+`permissions.allow`/`additionalDirectories` entries to be ignored in an untrusted target repo (see
+the "Ignoring N permissions.allow entries..." CLI message). **Accepted tradeoff, not an oversight:**
+a dispatched session now has unattended full tool permissions inside whatever repo it's pointed
+at - the existing security model already treats the registry-resolved repo path as the actual
+boundary (never a client-supplied path, see the Security section above), so this extends that same
+trust boundary to "full tool access inside that one registry-approved repo," it doesn't remove the
+boundary itself. Revisit if dispatch is ever exposed beyond localhost.
+
 **Known v1 limitations of real dispatch, not oversights:**
 - Running processes are tracked **in-memory only** (`SessionRunner`'s `ConcurrentDictionary`). An
   API restart loses the ability for `Stop()` (now `POST /api/sessions/{id}/stop`) to find the OS

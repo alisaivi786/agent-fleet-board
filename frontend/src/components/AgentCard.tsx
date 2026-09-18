@@ -191,7 +191,7 @@ export function AgentCard({
         </button>
       </div>
 
-      {workOpen && <SessionPanel agentId={agent.id} repoName={agent.repoName} />}
+      {workOpen && <SessionPanel agentId={agent.id} />}
       {historyOpen && (
         <AgentHistoryModal agentId={agent.id} agentName={agent.name} onClose={() => setHistoryOpen(false)} />
       )}

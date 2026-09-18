@@ -105,6 +105,15 @@ public sealed class SessionRunner(IServiceScopeFactory scopeFactory, ILogger<Ses
         }
 
         info.ArgumentList.Add("-p");
+        // Dispatched sessions run fully headless (stdin only ever carries the prompt, then closes -
+        // see Start()), so there's no TTY for Claude to ask a permission question on. Without this
+        // flag it would print the question to stdout and exit 0 having done nothing, which we'd
+        // then record as Succeeded - a silent no-op, not a real run. This also bypasses the
+        // workspace-trust gate that otherwise ignores the repo's .claude/settings.json entirely.
+        // Accepted tradeoff for this tool's existing security model (see CLAUDE.md): the repo path
+        // is always registry-resolved, never client-supplied, but a dispatched session now has
+        // unattended full tool permissions inside that repo.
+        info.ArgumentList.Add("--dangerously-skip-permissions");
         return info;
     }
 

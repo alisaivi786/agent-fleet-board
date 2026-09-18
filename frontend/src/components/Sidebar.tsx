@@ -1,11 +1,12 @@
-import { ActivityIcon, AgentsIcon, DashboardIcon, ProjectsIcon, RepoIcon, SettingsIcon } from '../icons';
+import { ActivityIcon, AgentMapIcon, AgentsIcon, DashboardIcon, ProjectsIcon, RepoIcon, SettingsIcon } from '../icons';
 
-export type Tab = 'dashboard' | 'repositories' | 'agents' | 'projects' | 'activity' | 'manage';
+export type Tab = 'dashboard' | 'repositories' | 'agents' | 'agent-map' | 'projects' | 'activity' | 'manage';
 
 const NAV_ITEMS: { tab: Tab; label: string; icon: (props: { size?: number }) => React.ReactElement }[] = [
   { tab: 'dashboard', label: 'Dashboard', icon: DashboardIcon },
   { tab: 'repositories', label: 'Repositories', icon: RepoIcon },
   { tab: 'agents', label: 'Agents', icon: AgentsIcon },
+  { tab: 'agent-map', label: 'Agent Map', icon: AgentMapIcon },
   { tab: 'projects', label: 'Projects', icon: ProjectsIcon },
   { tab: 'activity', label: 'Activity', icon: ActivityIcon },
   { tab: 'manage', label: 'Manage', icon: SettingsIcon },
