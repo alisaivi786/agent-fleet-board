@@ -94,7 +94,7 @@ export function DashboardPage({
           )}
         </div>
 
-        <SystemHealthPanel />
+        <SystemHealthPanel agents={agents} />
 
         <div className="panel dashboard-activity">
           <div className="panel-head">

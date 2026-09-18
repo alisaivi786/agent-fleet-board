@@ -116,3 +116,12 @@ export function MemoryIcon({ size = 16 }: IconProps) {
     </svg>
   );
 }
+
+export function HeartbeatIcon({ size = 16 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" {...common}>
+      <path d="M20.5 12h-3.2l-2 4.5-3-9-1.8 4.5H3.5" />
+      <path d="M12 20.2C7 17 3.5 14 3.5 10.2A4.2 4.2 0 0 1 12 8.6a4.2 4.2 0 0 1 8.5 1.6c0 3.8-3.5 6.8-8.5 10" />
+    </svg>
+  );
+}
