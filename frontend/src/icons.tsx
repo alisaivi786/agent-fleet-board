@@ -117,6 +117,23 @@ export function MemoryIcon({ size = 16 }: IconProps) {
   );
 }
 
+export function CloseIcon({ size = 16 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" {...common}>
+      <path d="M5 5l14 14M19 5L5 19" />
+    </svg>
+  );
+}
+
+export function HistoryIcon({ size = 16 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" {...common}>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M12 7.5V12l3.2 2" />
+    </svg>
+  );
+}
+
 export function HeartbeatIcon({ size = 16 }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" {...common}>
