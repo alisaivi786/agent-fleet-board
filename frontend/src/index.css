@@ -153,6 +153,47 @@ h1 {
   padding: 14px 16px;
 }
 
+.stat-filter {
+  font-family: var(--font-sans);
+  text-align: left;
+  cursor: pointer;
+  width: 100%;
+  transition: border-color 0.15s;
+}
+
+.stat-filter:hover {
+  border-color: var(--accent);
+}
+
+.stat-filter.active {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.roster-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.roster-toolbar .section-label {
+  margin: 0;
+  white-space: nowrap;
+}
+
+.roster-search {
+  flex: 0 1 320px;
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 7px 10px;
+}
+
 .stat .num {
   font-family: var(--font-mono);
   font-size: 1.6rem;
