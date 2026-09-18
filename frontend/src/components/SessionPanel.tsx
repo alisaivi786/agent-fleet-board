@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { fetchSession, fetchSessionLog, startSession, stopSession } from '../api';
+import { fetchSession, fetchSessionLog, preparePrompt, startSession, stopSession } from '../api';
 import type { AgentSession } from '../types';
 
 const POLL_INTERVAL_MS = 2000;
@@ -23,6 +23,8 @@ export function SessionPanel({ agentId, repoName }: { agentId: string; repoName:
   const [log, setLog] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [command, setCommand] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const [pollWarning, setPollWarning] = useState<string | null>(null);
   const sessionIdRef = useRef<string | null>(null);
   const pollFailureCountRef = useRef(0);
@@ -63,6 +65,24 @@ export function SessionPanel({ agentId, repoName }: { agentId: string; repoName:
     };
   }, [session]);
 
+  async function handleCopyCommand() {
+    if (!prompt.trim()) return;
+    setBusy(true);
+    setError(null);
+    setCopied(false);
+    try {
+      const result = await preparePrompt(agentId, prompt);
+      setCommand(result.command);
+      await navigator.clipboard.writeText(result.command).catch(() => undefined);
+      setCopied(true);
+    } catch (err) {
+      setCommand(null);
+      setError(err instanceof Error ? err.message : 'Failed to prepare command');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function handleStart(e: React.FormEvent) {
     e.preventDefault();
     if (
@@ -98,30 +118,45 @@ export function SessionPanel({ agentId, repoName }: { agentId: string; repoName:
     }
   }
 
+  const running = session?.status === 'Running';
+
   return (
     <div className="session-panel">
-      <form className="prompt-box" onSubmit={handleStart}>
+      <form className="work-form" onSubmit={handleStart}>
         <textarea
-          placeholder="What should this agent actually do? (runs for real)"
+          placeholder="What should this agent do?"
           value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
+          onChange={(e) => {
+            setPrompt(e.target.value);
+            setCopied(false);
+          }}
           required
-          disabled={session?.status === 'Running'}
+          disabled={running}
         />
-        <button type="submit" disabled={busy || session?.status === 'Running'}>
-          Run now
-        </button>
+        <div className="work-actions">
+          <button type="button" className="btn-secondary" onClick={handleCopyCommand} disabled={busy || !prompt.trim()}>
+            {copied ? 'Copied to clipboard' : 'Copy command'}
+          </button>
+          <button type="submit" className="btn-primary" disabled={busy || running || !prompt.trim()}>
+            Run now
+          </button>
+        </div>
+        {command && (
+          <div className="prompt-command">
+            <code>{command}</code>
+          </div>
+        )}
         {error && <div className="error-banner">{error}</div>}
       </form>
 
       {session && (
         <div className="session-status">
           <div className="session-status-row">
-            <span className={`pill ${session.status === 'Running' ? 'working' : session.status === 'Failed' ? 'warn' : 'idle'}`}>
+            <span className={`pill ${running ? 'working' : session.status === 'Failed' ? 'warn' : 'idle'}`}>
               <span className="dot" />
               {statusLabel(session.status)}
             </span>
-            {session.status === 'Running' && (
+            {running && (
               <button type="button" className="btn-danger" onClick={handleStop}>
                 Stop
               </button>

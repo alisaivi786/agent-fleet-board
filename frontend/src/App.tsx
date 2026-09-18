@@ -78,6 +78,8 @@ export default function App() {
             No agents configured yet. Switch to the <strong>Manage</strong> tab to register a repo and
             create an agent.
           </p>
+        ) : !repos ? (
+          <p className="loading">Loading registry…</p>
         ) : (
           <>
             <div className="stat-row">
@@ -102,7 +104,7 @@ export default function App() {
             <p className="section-label">Roster</p>
             <div className="roster">
               {agents.map((agent) => (
-                <AgentCard agent={agent} key={agent.id} />
+                <AgentCard agent={agent} repos={repos} onChange={refetch} key={agent.id} />
               ))}
             </div>
           </>

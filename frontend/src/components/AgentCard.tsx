@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import type { AgentStatus } from '../types';
+import type { AgentStatus, RepoDefinition } from '../types';
 import { avatarColor } from '../colors';
-import { preparePrompt } from '../api';
+import { assignAgent, unassignAgent } from '../api';
 import { SessionPanel } from './SessionPanel';
 
 function relativeTime(iso: string | null): string {
@@ -15,41 +15,36 @@ function relativeTime(iso: string | null): string {
   return `${Math.round(hours / 24)}d ago`;
 }
 
-export function AgentCard({ agent }: { agent: AgentStatus }) {
+export function AgentCard({
+  agent,
+  repos,
+  onChange,
+}: {
+  agent: AgentStatus;
+  repos: RepoDefinition[];
+  onChange: () => void;
+}) {
   const working = !agent.isClean || agent.aheadOfBase > 0;
   const initial = agent.name.charAt(0).toUpperCase();
 
-  const [promptOpen, setPromptOpen] = useState(false);
-  const [runOpen, setRunOpen] = useState(false);
-  const [prompt, setPrompt] = useState('');
-  const [command, setCommand] = useState<string | null>(null);
-  const [promptError, setPromptError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [workOpen, setWorkOpen] = useState(false);
+  const [reassignBusy, setReassignBusy] = useState(false);
+  const [reassignError, setReassignError] = useState<string | null>(null);
 
-  async function handlePrepare(e: React.FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    setPromptError(null);
-    setCopied(false);
+  async function handleReassign(repoId: string) {
+    setReassignBusy(true);
+    setReassignError(null);
     try {
-      const result = await preparePrompt(agent.id, prompt);
-      setCommand(result.command);
+      if (repoId === '') {
+        await unassignAgent(agent.id);
+      } else {
+        await assignAgent(agent.id, repoId);
+      }
+      onChange();
     } catch (err) {
-      setCommand(null);
-      setPromptError(err instanceof Error ? err.message : 'Failed to prepare command');
+      setReassignError(err instanceof Error ? err.message : 'Failed to update assignment');
     } finally {
-      setBusy(false);
-    }
-  }
-
-  async function handleCopy() {
-    if (!command) return;
-    try {
-      await navigator.clipboard.writeText(command);
-      setCopied(true);
-    } catch {
-      setCopied(false);
+      setReassignBusy(false);
     }
   }
 
@@ -80,6 +75,19 @@ export function AgentCard({ agent }: { agent: AgentStatus }) {
           </span>
         )}
       </div>
+
+      <div className="assign-row">
+        <span className="k">Repo</span>
+        <select value={agent.repoId ?? ''} onChange={(e) => handleReassign(e.target.value)} disabled={reassignBusy}>
+          <option value="">Unassigned</option>
+          {repos.map((repo) => (
+            <option value={repo.id} key={repo.id}>
+              {repo.name}
+            </option>
+          ))}
+        </select>
+      </div>
+      {reassignError && <div className="error-banner">{reassignError}</div>}
 
       {agent.error ? (
         <p className="card-error">{agent.error}</p>
@@ -132,48 +140,16 @@ export function AgentCard({ agent }: { agent: AgentStatus }) {
       <div className="card-actions">
         <button
           type="button"
-          className="prompt-toggle"
-          onClick={() => setPromptOpen((open) => !open)}
+          className="btn-primary work-toggle"
+          onClick={() => setWorkOpen((open) => !open)}
           disabled={!agent.repoId}
           title={agent.repoId ? undefined : 'Assign a repo first'}
         >
-          {promptOpen ? 'Close' : 'Prompt'}
-        </button>
-        <button
-          type="button"
-          className="prompt-toggle run-toggle"
-          onClick={() => setRunOpen((open) => !open)}
-          disabled={!agent.repoId}
-          title={agent.repoId ? undefined : 'Assign a repo first'}
-        >
-          {runOpen ? 'Close' : 'Run'}
+          {workOpen ? 'Close' : 'Assign work'}
         </button>
       </div>
 
-      {promptOpen && (
-        <form className="prompt-box" onSubmit={handlePrepare}>
-          <textarea
-            placeholder="What should this agent do?"
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            required
-          />
-          <button type="submit" disabled={busy}>
-            Prepare command
-          </button>
-          {promptError && <div className="error-banner">{promptError}</div>}
-          {command && (
-            <div className="prompt-command">
-              <code>{command}</code>
-              <button type="button" onClick={handleCopy}>
-                {copied ? 'Copied' : 'Copy'}
-              </button>
-            </div>
-          )}
-        </form>
-      )}
-
-      {runOpen && <SessionPanel agentId={agent.id} repoName={agent.repoName} />}
+      {workOpen && <SessionPanel agentId={agent.id} repoName={agent.repoName} />}
     </div>
   );
 }

@@ -128,6 +128,18 @@ Also first time: copy `backend/src/AgentFleetBoard.Api/appsettings.Local.json.ex
 `appsettings.Local.json` in that same folder and fill in the same `POSTGRES_PASSWORD` you put in
 `.env` (both are gitignored, never commit either).
 
+**Known port caveat (2026-09-18):** on this machine, `:5299` sometimes also collides with an
+unrelated project's Docker container (`zkteco-wiremock-dev`, port-forwarding host `5299` -> its own
+container's `8080`) - Windows allows two processes to both bind `:5299` when one binds the wildcard
+address and the other binds a specific one, so requests silently round-robin between the real API
+and WireMock's mock server, producing intermittent, unexplainable 404s in the frontend with no
+server-side error at all. **Kept the API on `:5299` anyway by explicit user request** (the user's
+workflow is always `make dev`, and changing the port was rejected) - so if this recurs, stop that
+other container (`docker stop zkteco-wiremock-dev`) rather than changing this project's port. If you see
+inconsistent 200/404s on the same endpoint with no exception logged, suspect a host port collision
+with some other locally-running service before suspecting the code - check with `netstat -ano |
+findstr :<port>` and `docker ps` for anything else publishing that port.
+
 On this machine Postgres already has Alice/Bob/Dua's real worktree paths seeded in (inserted
 directly via `docker exec ... psql`, not through a migration — see Architecture above). A fresh
 clone's DB starts empty; use the Manage tab in the UI, or the `POST /api/repos` / `POST
