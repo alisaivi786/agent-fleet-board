@@ -69,7 +69,7 @@ export function AgentsPage({
           onClick={() => setStatusFilter((f) => (f === 'working' ? 'all' : 'working'))}
         >
           <div className="num">{workingCount}</div>
-          <div className="label">Diverged</div>
+          <div className="label">Working</div>
         </button>
         <div className="stat">
           <div className="num">{changedFileCount}</div>
@@ -84,7 +84,7 @@ export function AgentsPage({
         <input
           className="roster-search"
           type="search"
-          placeholder="Filter by name, role, repo, or branch…"
+          placeholder="Filter by name, role, repo, or branch..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />

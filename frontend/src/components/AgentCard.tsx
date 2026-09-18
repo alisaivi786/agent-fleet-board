@@ -7,7 +7,7 @@ import { StatusPill } from './StatusPill';
 import { AgentHistoryModal } from './AgentHistoryModal';
 
 function relativeTime(iso: string | null): string {
-  if (!iso) return '—';
+  if (!iso) return '-';
   const diffMs = Date.now() - new Date(iso).getTime();
   const minutes = Math.round(diffMs / 60000);
   if (minutes < 1) return 'just now';
@@ -136,12 +136,12 @@ export function AgentCard({
           <div className="kv-row">
             <span className="k">Branch</span>
             <span className="v">
-              <span className="branch-chip">{agent.branch ?? '—'}</span>
+              <span className="branch-chip">{agent.branch ?? '-'}</span>
             </span>
           </div>
           <div className="kv-row">
             <span className="k">Last commit</span>
-            <span className="v">{agent.lastCommitMessage ?? '—'}</span>
+            <span className="v">{agent.lastCommitMessage ?? '-'}</span>
           </div>
           <div className="kv-row">
             <span className="k">Committed</span>
@@ -150,7 +150,7 @@ export function AgentCard({
           <div className="kv-row">
             <span className="k">vs. base</span>
             <span className="v">
-              {agent.aheadOfBase} ahead · {agent.behindBase} behind
+              {agent.aheadOfBase} ahead / {agent.behindBase} behind
             </span>
           </div>
           <div className="kv-row">

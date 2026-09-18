@@ -95,7 +95,7 @@ function Turn({ session, onChange }: { session: AgentSession; onChange: (updated
     <div className="chat-turn">
       <div className="chat-turn-time">
         {absoluteTime(session.startedAtUtc)}
-        {durationLabel && <span className="chat-turn-duration"> · {durationLabel}</span>}
+        {durationLabel && <span className="chat-turn-duration"> / {durationLabel}</span>}
       </div>
 
       <div className="chat-bubble chat-bubble-user">
@@ -116,7 +116,7 @@ function Turn({ session, onChange }: { session: AgentSession; onChange: (updated
             </button>
           )}
         </div>
-        <pre className="chat-bubble-log">{log || (running ? 'Waiting for output…' : '(no output captured)')}</pre>
+        <pre className="chat-bubble-log">{log || (running ? 'Waiting for output...' : '(no output captured)')}</pre>
         {logError && <div className="error-banner">{logError}</div>}
       </div>
     </div>
@@ -181,7 +181,7 @@ export function AgentHistoryModal({
               <div className="modal-title history-modal-title">{agentName}</div>
               <div className="history-modal-subtitle">
                 Session history
-                {runningCount > 0 && ` · ${runningCount} running now`}
+                {runningCount > 0 && ` / ${runningCount} running now`}
               </div>
             </div>
           </div>
@@ -193,7 +193,7 @@ export function AgentHistoryModal({
         {error && <div className="error-banner">{error}</div>}
 
         {!sessions ? (
-          <p className="loading">Loading…</p>
+          <p className="loading">Loading...</p>
         ) : sessions.length === 0 ? (
           <p className="loading">No sessions have been run for this agent yet.</p>
         ) : (
