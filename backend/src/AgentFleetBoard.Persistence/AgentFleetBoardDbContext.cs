@@ -28,7 +28,7 @@ public sealed class AgentFleetBoardDbContext(DbContextOptions<AgentFleetBoardDbC
             project.HasOne<RepoDefinition>()
                 .WithMany()
                 .HasForeignKey(p => p.RepoId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<AgentDefinition>(agent =>

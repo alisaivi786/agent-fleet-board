@@ -41,6 +41,12 @@ export function deleteRepo(id: string): Promise<void> {
   return request(`/api/repos/${id}`, { method: 'DELETE' });
 }
 
+export function discoverWorktrees(
+  repoId: string,
+): Promise<{ createdRepos: RepoDefinition[]; createdAgents: AgentDefinition[] }> {
+  return request(`/api/repos/${repoId}/discover-worktrees`, { method: 'POST' });
+}
+
 export function createAgent(input: { name: string; role: string }): Promise<AgentDefinition> {
   return request('/api/agents', { method: 'POST', body: JSON.stringify(input) });
 }
@@ -61,7 +67,7 @@ export function fetchProjects(signal?: AbortSignal): Promise<Project[]> {
   return request('/api/projects', { signal });
 }
 
-export function createProject(input: { name: string; repoId: string }): Promise<Project> {
+export function createProject(input: { name: string; repoId?: string; baseBranch?: string }): Promise<Project> {
   return request('/api/projects', { method: 'POST', body: JSON.stringify(input) });
 }
 

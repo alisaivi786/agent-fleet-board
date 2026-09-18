@@ -12,6 +12,7 @@ builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, relo
 builder.Services.AddPersistence(builder.Configuration);
 builder.Services.AddSingleton<IGitStatusReader, GitStatusReader>();
 builder.Services.AddSingleton<ISessionRunner, SessionRunner>();
+builder.Services.AddSingleton<IWorktreeScanner, WorktreeScanner>();
 builder.Services.AddSingleton<SystemMetricsSampler>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<SystemMetricsSampler>());
 
@@ -53,6 +54,64 @@ app.MapPost("/api/repos", async (CreateRepoRequest request, IRepoRegistry repos,
 
 app.MapDelete("/api/repos/{id:guid}", async (Guid id, IRepoRegistry repos, CancellationToken cancellationToken) =>
     await repos.RemoveAsync(id, cancellationToken) ? Results.NoContent() : Results.NotFound());
+
+// "Connect a repo, get its agents for free": most real usage is one agent per git worktree under
+// a shared repo (e.g. Claude Code's own .claude/worktrees/<name> convention), not one hand-typed
+// repo entry per agent. For each *linked* worktree (the main worktree at repo.Path is skipped -
+// that's already this repo), registers a repo entry for its path if one doesn't already exist, and
+// creates+assigns a new agent if no existing agent already points at that repo - idempotent, so
+// running this again after manually tweaking names/roles won't create duplicates.
+app.MapPost("/api/repos/{id:guid}/discover-worktrees", async (
+    Guid id, IRepoRegistry repos, IAgentRegistry agents, IWorktreeScanner scanner, CancellationToken cancellationToken) =>
+{
+    RepoDefinition? repo = await repos.GetByIdAsync(id, cancellationToken);
+    if (repo is null)
+    {
+        return Results.NotFound();
+    }
+
+    IReadOnlyList<WorktreeInfo> worktrees = await scanner.ListLinkedWorktreesAsync(repo.Path, cancellationToken);
+    IReadOnlyList<RepoDefinition> existingRepos = await repos.GetAllAsync(cancellationToken);
+    IReadOnlyList<AgentDefinition> existingAgents = await agents.GetAllAsync(cancellationToken);
+
+    var createdRepos = new List<RepoDefinition>();
+    var createdAgents = new List<AgentDefinition>();
+
+    foreach (WorktreeInfo worktree in worktrees)
+    {
+        RepoDefinition? matchedRepo = existingRepos.Concat(createdRepos).FirstOrDefault(r => SamePath(r.Path, worktree.Path));
+
+        if (matchedRepo is null)
+        {
+            string repoName = Path.GetFileName(worktree.Path.TrimEnd('\\', '/'));
+            RepoDefinition? added = await repos.AddAsync(repoName, worktree.Path, repo.BaseBranch, cancellationToken);
+            if (added is null)
+            {
+                continue; // Path vanished between the scan above and this add - skip it.
+            }
+
+            matchedRepo = added;
+            createdRepos.Add(added);
+        }
+
+        bool agentAlreadyExists = existingAgents.Concat(createdAgents).Any(a => a.AssignedRepoId == matchedRepo.Id);
+        if (agentAlreadyExists)
+        {
+            continue;
+        }
+
+        string folderName = Path.GetFileName(worktree.Path.TrimEnd('\\', '/'));
+        string agentName = folderName.Length == 0 ? folderName : char.ToUpperInvariant(folderName[0]) + folderName[1..];
+        AgentDefinition created = await agents.CreateAsync(agentName, "Agent", cancellationToken);
+        AgentDefinition? assigned = await agents.AssignAsync(created.Id, matchedRepo.Id, cancellationToken);
+        createdAgents.Add(assigned ?? created);
+    }
+
+    return Results.Ok(new { createdRepos, createdAgents });
+
+    static bool SamePath(string a, string b) =>
+        string.Equals(Path.GetFullPath(a).TrimEnd('\\', '/'), Path.GetFullPath(b).TrimEnd('\\', '/'), StringComparison.OrdinalIgnoreCase);
+});
 
 app.MapGet("/api/agents", async (
     IAgentRegistry agents, IRepoRegistry repos, IProjectRegistry projects, IGitStatusReader reader,
@@ -129,7 +188,7 @@ app.MapGet("/api/projects", async (IProjectRegistry projects, CancellationToken 
 
 app.MapPost("/api/projects", async (CreateProjectRequest request, IProjectRegistry projects, CancellationToken cancellationToken) =>
 {
-    Project? project = await projects.CreateAsync(request.Name, request.RepoId, cancellationToken);
+    Project? project = await projects.CreateAsync(request.Name, request.RepoId, request.BaseBranch, cancellationToken);
     return project is null ? Results.BadRequest(new { error = "Unknown repo id." }) : Results.Ok(project);
 });
 
@@ -295,7 +354,7 @@ internal sealed record AssignAgentRequest(Guid RepoId);
 
 internal sealed record PreparePromptRequest(string Prompt);
 
-internal sealed record CreateProjectRequest(string Name, Guid RepoId);
+internal sealed record CreateProjectRequest(string Name, Guid? RepoId, string? BaseBranch);
 
 internal sealed record AssignAgentProjectRequest(Guid ProjectId);
 

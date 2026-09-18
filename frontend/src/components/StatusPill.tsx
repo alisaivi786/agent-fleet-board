@@ -12,9 +12,9 @@ export function StatusPill({ agent }: { agent: AgentStatus }) {
   }
   if (isWorking(agent)) {
     return (
-      <span className="pill working">
+      <span className="pill working" title="Ahead of base or has uncommitted changes - reflects git status, not a live running process.">
         <span className="dot" />
-        Working
+        Diverged
       </span>
     );
   }

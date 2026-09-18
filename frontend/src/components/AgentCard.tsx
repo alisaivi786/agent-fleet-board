@@ -83,8 +83,6 @@ export function AgentCard({
     }
   }
 
-  const gitLooksBusy = !agent.error && (!agent.isClean || agent.aheadOfBase > 0);
-
   return (
     <div className="card">
       <div className="card-head">
@@ -95,15 +93,7 @@ export function AgentCard({
           <div className="card-name">{agent.name}</div>
           <div className="card-role">{agent.role}</div>
         </div>
-        <span
-          title={
-            gitLooksBusy && !runningSession
-              ? 'Reflects git status (uncommitted changes or commits ahead of base) - not necessarily a live process.'
-              : undefined
-          }
-        >
-          <StatusPill agent={agent} />
-        </span>
+        <StatusPill agent={agent} />
       </div>
 
       {agent.projectName && (

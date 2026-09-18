@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { createRepo, deleteRepo } from '../api';
+import { createRepo, deleteRepo, discoverWorktrees } from '../api';
 import type { RepoDefinition } from '../types';
 
 export function RepoManager({
@@ -14,6 +14,8 @@ export function RepoManager({
   const [baseBranch, setBaseBranch] = useState('main');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [discoverBusyId, setDiscoverBusyId] = useState<string | null>(null);
+  const [discoverMessage, setDiscoverMessage] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -35,6 +37,25 @@ export function RepoManager({
   async function handleDelete(id: string) {
     await deleteRepo(id);
     onChange();
+  }
+
+  async function handleDiscover(id: string) {
+    setDiscoverBusyId(id);
+    setError(null);
+    setDiscoverMessage(null);
+    try {
+      const result = await discoverWorktrees(id);
+      setDiscoverMessage(
+        result.createdAgents.length === 0
+          ? 'No new worktrees found - everything already registered.'
+          : `Registered ${result.createdAgents.length} new agent(s): ${result.createdAgents.map((a) => a.name).join(', ')}.`,
+      );
+      onChange();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to discover worktrees');
+    } finally {
+      setDiscoverBusyId(null);
+    }
   }
 
   return (
@@ -59,7 +80,16 @@ export function RepoManager({
                 <td>{repo.name}</td>
                 <td className="mono-cell">{repo.path}</td>
                 <td>{repo.baseBranch}</td>
-                <td>
+                <td className="manage-table-actions">
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => handleDiscover(repo.id)}
+                    disabled={discoverBusyId === repo.id}
+                    title="Scan this repo for git worktrees (e.g. .claude/worktrees/*) and register a repo+agent for each new one found"
+                  >
+                    {discoverBusyId === repo.id ? 'Scanning…' : 'Discover worktrees'}
+                  </button>
                   <button type="button" className="btn-danger" onClick={() => handleDelete(repo.id)}>
                     Delete
                   </button>
@@ -69,6 +99,7 @@ export function RepoManager({
           </tbody>
         </table>
       )}
+      {discoverMessage && <p className="hint-text">{discoverMessage}</p>}
 
       <form className="manage-form" onSubmit={handleSubmit}>
         <input

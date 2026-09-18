@@ -1021,6 +1021,13 @@ h1 {
   border-bottom: 1px solid var(--line);
 }
 
+.project-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
 .project-card-name {
   font-weight: 650;
   font-size: 1.05rem;
@@ -1171,4 +1178,22 @@ h1 {
   color: var(--warn);
   padding: 5px 10px;
   font-size: 0.76rem;
+}
+
+.manage-table-actions {
+  display: flex;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.manage-table-actions .btn-secondary {
+  padding: 5px 10px;
+  font-size: 0.76rem;
+}
+
+.hint-text {
+  color: var(--ink-dim);
+  font-size: 0.78rem;
+  line-height: 1.5;
+  margin: 10px 0 0;
 }

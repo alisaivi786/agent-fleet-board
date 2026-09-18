@@ -65,13 +65,21 @@ clears an assignment without deleting the agent. `POST /api/agents/{id}/prepare-
 assigned agent — it only formats the string, nothing gets executed server-side. In the UI, this is
 the "Prompt" button on each agent card in the Roster tab.
 
-**Projects** group agents under a single bound repo: `POST /api/projects` (body `{"name": "...",
-"repoId": "..."}`) creates one, `GET /api/projects` lists them, `DELETE /api/projects/{id}` removes
-one. `POST /api/agents/{id}/assign-project` (body `{"projectId": "..."}`) binds an agent to a
-project and always sets its repo to that project's repo in the same write — an agent bound to a
-project can't be pointed at a different repo without unassigning the project first
-(`POST /api/agents/{id}/unassign-project`). The Projects tab in the UI shows one card per project
-with its agents, plus an "Unassigned agents" section.
+**Projects** group agents for display - not a hard repo lock, since agents in the same project
+commonly run against different repos (e.g. separate git worktrees of the same codebase).
+`POST /api/projects` (body `{"name": "...", "repoId": "...", "baseBranch": "..."}`, both optional)
+creates one; `repoId` only ever pre-fills a *new* agent's repo when it doesn't have one yet,
+`baseBranch` is descriptive metadata only (never used for ahead/behind - that always comes from
+each agent's own repo). `GET /api/projects` lists them, `DELETE /api/projects/{id}` removes one.
+`POST /api/agents/{id}/assign-project` (body `{"projectId": "..."}`) binds an agent to a project;
+`POST /api/agents/{id}/unassign-project` clears it. The Projects tab in the UI shows one card per
+project with its agents and the repos actually in use (derived from the agents, not the nominal
+default), plus an "Unassigned agents" section.
+
+**Worktree discovery:** `POST /api/repos/{id}/discover-worktrees` scans a registered repo for git
+worktrees (`git worktree list`) and registers a repo+agent for each one not already known -
+idempotent, safe to re-run. Exposed as a "Discover worktrees" button per repo row in the Manage
+tab.
 
 **4. Run the frontend:**
 

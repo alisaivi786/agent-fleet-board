@@ -151,7 +151,7 @@ export default function App() {
           ) : tab === 'agents' ? (
             <AgentsPage agents={agents} repos={repos} onChange={refetch} />
           ) : tab === 'projects' ? (
-            <ProjectShowcase projects={projects} agents={agents} repos={repos} />
+            <ProjectShowcase projects={projects} agents={agents} />
           ) : tab === 'activity' ? (
             <ActivityPage activity={activity} />
           ) : (

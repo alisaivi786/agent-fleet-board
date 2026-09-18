@@ -23,7 +23,9 @@ export interface AgentStatus {
 export interface Project {
   id: string;
   name: string;
-  repoId: string;
+  repoId: string | null;
+  /** Descriptive only (e.g. "develop") - never used for ahead/behind. That comes from each agent's own repo. */
+  baseBranch: string | null;
 }
 
 export interface RepoDefinition {

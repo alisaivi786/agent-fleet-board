@@ -5,8 +5,8 @@ namespace AgentFleetBoard.Persistence;
 
 /// <summary>
 /// Persisted registry of projects, backed by the "projects" table. Like AgentRegistry.AssignAsync,
-/// CreateAsync validates the repo exists first - a project can never end up bound to an
-/// unregistered path.
+/// CreateAsync validates a non-null repoId exists first - a project can never end up bound to an
+/// unregistered path, but it's fine to have no default repo at all.
 /// </summary>
 public sealed class ProjectRegistry(AgentFleetBoardDbContext db) : IProjectRegistry
 {
@@ -16,15 +16,14 @@ public sealed class ProjectRegistry(AgentFleetBoardDbContext db) : IProjectRegis
     public async Task<Project?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
         => await db.Projects.AsNoTracking().FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
 
-    public async Task<Project?> CreateAsync(string name, Guid repoId, CancellationToken cancellationToken)
+    public async Task<Project?> CreateAsync(string name, Guid? repoId, string? baseBranch, CancellationToken cancellationToken)
     {
-        bool repoExists = await db.Repos.AsNoTracking().AnyAsync(r => r.Id == repoId, cancellationToken);
-        if (!repoExists)
+        if (repoId is { } id && !await db.Repos.AsNoTracking().AnyAsync(r => r.Id == id, cancellationToken))
         {
             return null;
         }
 
-        var project = new Project { Id = Guid.NewGuid(), Name = name, RepoId = repoId };
+        var project = new Project { Id = Guid.NewGuid(), Name = name, RepoId = repoId, BaseBranch = baseBranch };
         db.Projects.Add(project);
         await db.SaveChangesAsync(cancellationToken);
         return project;

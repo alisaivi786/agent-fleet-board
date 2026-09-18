@@ -79,25 +79,51 @@ would justify them. Add layers when something concrete needs them, not preemptiv
   public repo (same rule as the old `appsettings.Local.json`). It was inserted directly into this
   machine's Postgres via `docker exec ... psql` after migrating; a fresh clone's DB starts empty
   and needs repos/agents registered through the API (see README.md).
-- **Projects (2026-09-18):** `003_CreateProjects.cs` adds a `projects` table (`id`, `name`, `repo_id`
-  — `repo_id` is `NOT NULL`, `ON DELETE CASCADE`, schema-wise a project needs one repo to point at)
-  and an `agents.project_id` nullable FK (`ON DELETE SET NULL`). A project groups agents for display
-  so you can see "what's this codebase's fleet doing" at a glance, not just a flat agent list.
-  **Deliberately a grouping label, not a hard repo lock** — real usage has multiple agents each on
-  their own git worktree of the *same* logical project (e.g. Alice/Bob/Dua each have a separate
-  `alice-repo`/`bob-repo`/`dua-repo` registry entry for their own `FMS-Prime` worktree), so forcing
-  every agent in a project onto one shared repo would have broken their individual git status
-  tracking the first time this was tried. `AssignProjectAsync` only fills in `AssignedRepoId` from
-  the project's `RepoId` when the agent doesn't have one yet (`agent.AssignedRepoId ??=
-  project.RepoId`) — an agent that already tracks a repo keeps it, full stop. The plain `AssignAsync`
-  (direct repo pick) no longer touches `ProjectId` either way. **Once an agent has a repo/branch
-  assigned, nothing changes it out from under the agent except an explicit assign/unassign call** —
-  this matters at scale (100+ agents is an explicit target), where silent reassignment would be
-  impossible to audit. `GET /api/agents` joins in `ProjectName` for display; the frontend's Projects
-  tab (`ProjectShowcase.tsx`) is the "showcase" screen: one card per project with its bound repo and
-  the agents currently in it, plus an "Unassigned agents" strip. `ProjectManager.tsx` (Manage tab)
-  creates/deletes projects; the repo select in `AgentManager.tsx`/`AgentCard.tsx` is never disabled
-  by a project assignment.
+- **Projects (2026-09-18):** `003_CreateProjects.cs` adds a `projects` table (`id`, `name`,
+  `repo_id`) and an `agents.project_id` nullable FK (`ON DELETE SET NULL`). A project groups agents
+  for display so you can see "what's this codebase's fleet doing" at a glance, not just a flat
+  agent list. **Deliberately a grouping label, not a hard repo lock** — real usage has multiple
+  agents each on their own git worktree of the *same* logical project (e.g. Alice/Bob/Dua each have
+  a separate `alice-repo`/`bob-repo`/`dua-repo` registry entry for their own `FMS-Prime` worktree),
+  so forcing every agent in a project onto one shared repo would have broken their individual git
+  status tracking the first time this was tried. `AssignProjectAsync` only fills in
+  `AssignedRepoId` from the project's `RepoId` when the agent doesn't have one yet
+  (`agent.AssignedRepoId ??= project.RepoId`) — an agent that already tracks a repo keeps it, full
+  stop. The plain `AssignAsync` (direct repo pick) no longer touches `ProjectId` either way. **Once
+  an agent has a repo/branch assigned, nothing changes it out from under the agent except an
+  explicit assign/unassign call** — this matters at scale (100+ agents is an explicit target),
+  where silent reassignment would be impossible to audit.
+- **`Project.RepoId`/`BaseBranch` are both optional, and both purely descriptive/default metadata,
+  never authoritative (2026-09-18, migrations `004`/`005`):** `RepoId` was originally `NOT NULL`
+  with `ON DELETE CASCADE`, which forced every project creation to pick one specific repo even
+  though (per the point above) a project's agents commonly run against *different* repos - the UI
+  then displayed that one nominal repo as if it were "the project's repo," which is exactly the
+  confusion this was built to avoid. Fixed by dropping the `NOT NULL` (FK is now `ON DELETE
+  SET NULL`) and adding an equally-optional `base_branch` text column. **Neither field feeds into
+  git-status computation** — ahead/behind for every agent always comes from its own repo's
+  `RepoDefinition.BaseBranch`, set at repo-registration time; a project's `BaseBranch` is describing
+  intent (e.g. "this project's work targets `develop`"), not overriding anything. `ProjectShowcase.tsx`
+  reflects this: instead of showing `Project.RepoId`'s name as a single badge, it derives and shows
+  the *actual* distinct repo names currently in use by that project's agents.
+- **Worktree auto-discovery (2026-09-18):** most real usage is one agent per git worktree under a
+  shared repo (Claude Code's own `.claude/worktrees/<name>` convention is the common case), not one
+  hand-typed repo entry per agent. `POST /api/repos/{id}/discover-worktrees`
+  (`WorktreeScanner.cs`, shells out to `git worktree list --porcelain` against the registry-resolved
+  repo path only, same rule as `GitStatusReader`) finds every *linked* worktree (the main worktree
+  is skipped - that's already the registered repo), registers a repo entry for each new path, and
+  creates+assigns a new agent named after the worktree's folder if no existing agent already points
+  there. Idempotent - safe to re-run after manually renaming agents, since it only acts on repos/
+  agents that don't exist yet. Exposed as a "Discover worktrees" button per repo row in
+  `RepoManager.tsx`.
+- **The "Working" pill was renamed "Diverged" (2026-09-18)** because it was never actually about a
+  live process — `isWorking()` just means "git shows this branch ahead of base or has uncommitted
+  changes," which can stay true indefinitely with nothing running (e.g. an agent with commits ahead
+  of `develop` that haven't been merged yet). Calling that "Working" repeatedly led to "why can't I
+  stop/free this agent" confusion, because there is genuinely nothing to stop - the pill isn't
+  reporting a session at all. A real running session (tracked via `AgentSession`/`SessionRunner`)
+  is a completely separate concept, surfaced distinctly: `AgentCard.tsx`'s "Session running" banner
+  and Dashboard's per-agent Stop button only ever appear when a session's `Status` is actually
+  `Running`, never derived from git state.
 
 **Api** (`backend/src/AgentFleetBoard.Api/Program.cs`):
 - `GitStatusReader` (unchanged from before this restructuring) shells out to the system `git`

@@ -69,7 +69,7 @@ export function AgentsPage({
           onClick={() => setStatusFilter((f) => (f === 'working' ? 'all' : 'working'))}
         >
           <div className="num">{workingCount}</div>
-          <div className="label">Working</div>
+          <div className="label">Diverged</div>
         </button>
         <div className="stat">
           <div className="num">{changedFileCount}</div>

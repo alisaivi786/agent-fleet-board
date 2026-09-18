@@ -1,4 +1,4 @@
-import type { AgentStatus, Project, RepoDefinition } from '../types';
+import type { AgentStatus, Project } from '../types';
 import { avatarColor } from '../colors';
 import { StatusPill } from './StatusPill';
 
@@ -20,13 +20,10 @@ function AgentChip({ agent }: { agent: AgentStatus }) {
 export function ProjectShowcase({
   projects,
   agents,
-  repos,
 }: {
   projects: Project[];
   agents: AgentStatus[];
-  repos: RepoDefinition[];
 }) {
-  const repoName = (id: string) => repos.find((r) => r.id === id)?.name ?? '—';
   const unassignedAgents = agents.filter((a) => !a.projectId);
 
   return (
@@ -42,11 +39,23 @@ export function ProjectShowcase({
         <div className="project-grid">
           {projects.map((project) => {
             const projectAgents = agents.filter((a) => a.projectId === project.id);
+            // The repos actually in use by this project's agents, not the nominal Project.RepoId
+            // (which is only ever a default for a new agent with no repo yet, not "the" repo for
+            // the whole project - see CLAUDE.md). Showing the real ones avoids implying every
+            // agent here runs against the same single repo when that's usually not true.
+            const distinctRepoNames = [...new Set(projectAgents.map((a) => a.repoName).filter((n): n is string => !!n))];
             return (
               <div className="project-card" key={project.id}>
                 <div className="project-card-head">
                   <div className="project-card-name">{project.name}</div>
-                  <span className="repo-tag">{repoName(project.repoId)}</span>
+                  <div className="project-card-tags">
+                    {project.baseBranch && <span className="repo-tag">base: {project.baseBranch}</span>}
+                    {distinctRepoNames.length === 0 ? (
+                      <span className="repo-tag">no repos yet</span>
+                    ) : (
+                      distinctRepoNames.map((name) => <span className="repo-tag" key={name}>{name}</span>)
+                    )}
+                  </div>
                 </div>
                 {projectAgents.length === 0 ? (
                   <p className="loading">No agents assigned yet.</p>
