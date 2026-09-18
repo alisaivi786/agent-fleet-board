@@ -10,6 +10,9 @@ builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, relo
 
 builder.Services.AddPersistence(builder.Configuration);
 builder.Services.AddSingleton<IGitStatusReader, GitStatusReader>();
+builder.Services.AddSingleton<ISessionRunner, SessionRunner>();
+
+string sessionLogDirectory = Path.Combine(builder.Environment.ContentRootPath, "logs");
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -117,6 +120,67 @@ app.MapPost("/api/agents/{id:guid}/prepare-prompt", async (
     return Results.Ok(new { command });
 });
 
+// Real dispatch: spawns a real `claude` subprocess against the agent's registry-resolved repo
+// path. This is the point where the tool's security model changes shape - see the security note
+// in CLAUDE.md and SessionRunner's doc comment. Still no auth: anyone who can reach this API can
+// trigger a real coding session against any registered repo.
+app.MapPost("/api/agents/{id:guid}/sessions", async (
+    Guid id, StartSessionRequest request,
+    IAgentRegistry agents, IRepoRegistry repos, ISessionRegistry sessions, ISessionRunner runner,
+    CancellationToken cancellationToken) =>
+{
+    IReadOnlyList<AgentDefinition> agentDefinitions = await agents.GetAllAsync(cancellationToken);
+    AgentDefinition? agent = agentDefinitions.FirstOrDefault(a => a.Id == id);
+    if (agent is null)
+    {
+        return Results.NotFound();
+    }
+
+    RepoDefinition? repo = agent.AssignedRepoId is { } repoId ? await repos.GetByIdAsync(repoId, cancellationToken) : null;
+    if (repo is null)
+    {
+        return Results.BadRequest(new { error = "Agent has no repo assigned." });
+    }
+
+    string logPath = Path.Combine(sessionLogDirectory, $"{Guid.NewGuid()}.log");
+    AgentSession session = await sessions.CreateAsync(agent.Id, repo.Id, repo.Path, request.Prompt, logPath, cancellationToken);
+
+    int processId = runner.Start(session.Id, repo.Path, request.Prompt, session.LogPath);
+    await sessions.SetRunningAsync(session.Id, processId, cancellationToken);
+
+    return Results.Ok(new { session.Id, session.AgentId, session.RepoId, session.RepoPath, session.Prompt, session.StartedAtUtc, processId });
+});
+
+app.MapGet("/api/agents/{id:guid}/sessions", async (Guid id, ISessionRegistry sessions, CancellationToken cancellationToken) =>
+    Results.Ok(await sessions.GetForAgentAsync(id, cancellationToken)));
+
+app.MapGet("/api/sessions/{id:guid}", async (Guid id, ISessionRegistry sessions, CancellationToken cancellationToken) =>
+{
+    AgentSession? session = await sessions.GetByIdAsync(id, cancellationToken);
+    return session is null ? Results.NotFound() : Results.Ok(session);
+});
+
+app.MapGet("/api/sessions/{id:guid}/log", async (Guid id, ISessionRegistry sessions, CancellationToken cancellationToken) =>
+{
+    AgentSession? session = await sessions.GetByIdAsync(id, cancellationToken);
+    if (session is null)
+    {
+        return Results.NotFound();
+    }
+
+    if (!File.Exists(session.LogPath))
+    {
+        return Results.Ok(new { log = "" });
+    }
+
+    // Small local tool, modest log sizes expected - read the whole file rather than tailing it.
+    string log = await File.ReadAllTextAsync(session.LogPath, cancellationToken);
+    return Results.Ok(new { log });
+});
+
+app.MapPost("/api/sessions/{id:guid}/stop", (Guid id, ISessionRunner runner) =>
+    runner.Stop(id) ? Results.NoContent() : Results.NotFound());
+
 app.MapGet("/", () => Results.Redirect("/swagger"));
 
 app.Run();
@@ -128,3 +192,5 @@ internal sealed record CreateAgentRequest(string Name, string Role);
 internal sealed record AssignAgentRequest(Guid RepoId);
 
 internal sealed record PreparePromptRequest(string Prompt);
+
+internal sealed record StartSessionRequest(string Prompt);

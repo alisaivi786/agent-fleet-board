@@ -155,11 +155,27 @@ originally specified and onto Postgres + a layered project structure
 (Domain/Persistence/Migrations/Api), by explicit request, not from the build plan itself — the
 plan's *endpoints and behavior* are still the spec; only the storage mechanism changed.
 
-**Real dispatch (Phase 2c in `docs/ROADMAP.md`) is the only piece left, and it is explicitly gated
-on a conversation, not a green light to keep building.** `docs/ROADMAP.md`'s "open questions"
-section lists five genuinely unresolved decisions (how a session gets launched — subprocess vs.
-Agent SDK vs. staying a viewer; how logs stream to the UI; what "connect to repo" means; whether
-`/api/agents` merges into a bigger API; the security boundary once the client can trigger a real
-process) that the roadmap itself says not to guess at. This is the point where the tool's security
-model changes shape — a client-triggered subprocess spawn is a different risk class than anything
-built so far. Confirm scope with the user before writing any code for it.
+**Real dispatch (Phase 2c) is now built, with scope confirmed by the user (2026-09-18): subprocess
+launch (not the Agent SDK), logs via polling a file (not SSE/WebSocket).** `POST
+/api/agents/{id}/sessions` spawns a real `claude -p "<prompt>"` subprocess against the agent's
+registry-resolved repo path (see `SessionRunner.cs` in `AgentFleetBoard.Api` and `AgentSession` in
+`AgentFleetBoard.Domain`/the `agent_sessions` table). `GET /api/agents/{id}/sessions` /
+`GET /api/sessions/{id}` / `GET /api/sessions/{id}/log` / `POST /api/sessions/{id}/stop` round out
+the lifecycle. This is the point where the tool's security model changed shape — a client-triggered
+subprocess spawn is a different risk class than anything built before it. Still no auth: anyone who
+can reach this API can trigger a real coding session against any registered repo.
+
+**Known v1 limitations of real dispatch, not oversights:**
+- Running processes are tracked **in-memory only** (`SessionRunner`'s `ConcurrentDictionary`). An
+  API restart loses the ability to `Stop()` an in-flight session - its DB row and log file survive,
+  but it'll never transition out of `Running` status on its own after that.
+- **This was never run end-to-end in the session that built it.** Starting the API to test it
+  autonomously was blocked by the harness's own safety classifier ("Create Unsafe Agents") once the
+  code could spawn `claude` subprocesses - by design, not a bug to work around. The build compiled
+  clean and the migration applied clean; the actual dispatch path (spawn → log capture → exit →
+  status update) needs a live test by a human before this is trusted. Do that before building
+  further on top of it.
+- No frontend UI for this yet - only the API exists. The existing "Prompt" button in
+  `AgentCard.tsx` still calls `prepare-prompt` (Phase 4, copy/paste), not `sessions` (Phase 2c, real
+  spawn). Wiring the UI to real dispatch is unstarted and should get an explicit human test of the
+  API first, given the point above.

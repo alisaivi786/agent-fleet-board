@@ -3,6 +3,7 @@
 **/obj/
 backend/**/appsettings.Local.json
 backend/data/
+backend/src/AgentFleetBoard.Api/logs/
 
 # Node (frontend has its own .gitignore too, this covers root-level runs)
 **/node_modules/
