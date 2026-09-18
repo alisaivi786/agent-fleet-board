@@ -1,6 +1,6 @@
 import type { AgentDefinition, AgentSession, AgentStatus, RepoDefinition } from './types';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5299';
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5390';
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {

@@ -33,27 +33,27 @@ make migrate           # creates the repos/agents tables
 
 ```bash
 cd backend/src/AgentFleetBoard.Api
-dotnet run --urls http://localhost:5299
+dotnet run --urls http://localhost:5390
 ```
 
-Swagger UI is at `http://localhost:5299/swagger`. There's no authentication yet — every endpoint
+Swagger UI is at `http://localhost:5390/swagger`. There's no authentication yet — every endpoint
 is anonymous (see Security note below).
 
 **3. Register a repo and an agent** through the API (persisted in Postgres, not committed - your
 real filesystem paths never touch git):
 
 ```bash
-curl -X POST http://localhost:5299/api/repos \
+curl -X POST http://localhost:5390/api/repos \
   -H "Content-Type: application/json" \
   -d '{"name":"my-repo","path":"C:\\path\\to\\repo","baseBranch":"develop"}'
 # -> { "id": "...", "name": "my-repo", ... }
 
-curl -X POST http://localhost:5299/api/agents \
+curl -X POST http://localhost:5390/api/agents \
   -H "Content-Type: application/json" \
   -d '{"name":"Alice","role":"Senior Software Engineer"}'
 # -> { "id": "...", "name": "Alice", "assignedRepoId": null }
 
-curl -X POST http://localhost:5299/api/agents/<agent-id>/assign \
+curl -X POST http://localhost:5390/api/agents/<agent-id>/assign \
   -H "Content-Type: application/json" \
   -d '{"repoId":"<repo-id>"}'
 ```
