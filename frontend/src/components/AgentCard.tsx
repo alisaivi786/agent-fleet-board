@@ -4,6 +4,7 @@ import { avatarColor } from '../colors';
 import { assignAgent, fetchSessions, forceStopSession, unassignAgent } from '../api';
 import { SessionPanel } from './SessionPanel';
 import { StatusPill } from './StatusPill';
+import { AgentHistoryModal } from './AgentHistoryModal';
 
 function relativeTime(iso: string | null): string {
   if (!iso) return '—';
@@ -28,6 +29,7 @@ export function AgentCard({
   const initial = agent.name.charAt(0).toUpperCase();
 
   const [workOpen, setWorkOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [reassignBusy, setReassignBusy] = useState(false);
   const [reassignError, setReassignError] = useState<string | null>(null);
   const [runningSession, setRunningSession] = useState<AgentSession | null>(null);
@@ -185,9 +187,15 @@ export function AgentCard({
         >
           {workOpen ? 'Close' : 'Assign work'}
         </button>
+        <button type="button" className="btn-secondary" onClick={() => setHistoryOpen(true)}>
+          History
+        </button>
       </div>
 
       {workOpen && <SessionPanel agentId={agent.id} repoName={agent.repoName} />}
+      {historyOpen && (
+        <AgentHistoryModal agentId={agent.id} agentName={agent.name} onClose={() => setHistoryOpen(false)} />
+      )}
     </div>
   );
 }
