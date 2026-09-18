@@ -145,9 +145,9 @@ export default function App() {
           {loading ? (
             <p className="loading">Loading fleet status…</p>
           ) : tab === 'dashboard' ? (
-            <DashboardPage agents={agents} repos={repos} projects={projects} activity={activity} onChange={refetch} onNavigate={setTab} />
+            <DashboardPage agents={agents} repos={repos} activity={activity} onChange={refetch} onNavigate={setTab} />
           ) : tab === 'repositories' ? (
-            <RepositoriesPage repos={repos} agents={agents} projects={projects} />
+            <RepositoriesPage repos={repos} agents={agents} />
           ) : tab === 'agents' ? (
             <AgentsPage agents={agents} repos={repos} onChange={refetch} />
           ) : tab === 'projects' ? (

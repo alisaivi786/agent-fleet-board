@@ -1,5 +1,4 @@
-import type { AgentStatus, Project, RepoDefinition, SessionActivity } from '../types';
-import { isIdle, isWorking } from '../agentStatus';
+import type { AgentStatus, RepoDefinition, SessionActivity } from '../types';
 import { avatarColor } from '../colors';
 import { forceStopSession } from '../api';
 import { StatusPill } from '../components/StatusPill';
@@ -10,23 +9,26 @@ import type { Tab } from '../components/Sidebar';
 export function DashboardPage({
   agents,
   repos,
-  projects,
   activity,
   onChange,
   onNavigate,
 }: {
   agents: AgentStatus[];
   repos: RepoDefinition[];
-  projects: Project[];
   activity: SessionActivity[];
   onChange: () => void;
   onNavigate: (tab: Tab) => void;
 }) {
-  const idleAgents = agents.filter(isIdle);
-  const workingAgents = agents.filter(isWorking);
   const runningTasks = activity.filter((a) => a.status === 'Running').length;
   const failedTasks = activity.filter((a) => a.status === 'Failed').length;
   const runningSessionByAgentId = new Map(activity.filter((a) => a.status === 'Running').map((a) => [a.agentId, a.id]));
+
+  // "Active" here means "has an actual running session" - matches Running tasks above. This is
+  // deliberately NOT the git-derived Diverged/Idle status shown on the Agents page: an agent can
+  // be git-clean (no divergence) while a session is genuinely running, or git-diverged with
+  // nothing running at all. Conflating the two previously made a stuck session invisible here.
+  const activeAgents = agents.filter((a) => runningSessionByAgentId.has(a.id));
+  const idleAgents = agents.filter((a) => !runningSessionByAgentId.has(a.id));
 
   async function handleStop(agentId: string) {
     const sessionId = runningSessionByAgentId.get(agentId);
@@ -43,7 +45,7 @@ export function DashboardPage({
           <div className="label">Total repositories</div>
         </div>
         <div className="stat">
-          <div className="num">{workingAgents.length}</div>
+          <div className="num">{activeAgents.length}</div>
           <div className="label">Active agents</div>
         </div>
         <div className="stat">
@@ -81,14 +83,20 @@ export function DashboardPage({
                 </tr>
               </thead>
               <tbody>
-                {repos.slice(0, 6).map((repo) => (
-                  <tr key={repo.id}>
-                    <td>{repo.name}</td>
-                    <td className="mono-cell">{repo.baseBranch}</td>
-                    <td>{agents.filter((a) => a.repoId === repo.id).length}</td>
-                    <td>{projects.filter((p) => p.repoId === repo.id).length}</td>
-                  </tr>
-                ))}
+                {repos.slice(0, 6).map((repo) => {
+                  const repoAgents = agents.filter((a) => a.repoId === repo.id);
+                  // Derived from the agents actually on this repo, not Project.RepoId - see
+                  // RepositoriesPage.tsx and CLAUDE.md for why that field isn't authoritative.
+                  const repoProjectCount = new Set(repoAgents.map((a) => a.projectName).filter(Boolean)).size;
+                  return (
+                    <tr key={repo.id}>
+                      <td>{repo.name}</td>
+                      <td className="mono-cell">{repo.baseBranch}</td>
+                      <td>{repoAgents.length}</td>
+                      <td>{repoProjectCount}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           )}
@@ -115,11 +123,11 @@ export function DashboardPage({
               View all →
             </button>
           </div>
-          {workingAgents.length === 0 ? (
-            <p className="loading">No agents are currently working.</p>
+          {activeAgents.length === 0 ? (
+            <p className="loading">No agents have a running session right now.</p>
           ) : (
             <div className="mini-agent-list">
-              {workingAgents.map((agent) => (
+              {activeAgents.map((agent) => (
                 <div className="mini-agent-row" key={agent.id}>
                   <span className="avatar avatar-sm" style={{ background: avatarColor(agent.name) }}>
                     {agent.name.charAt(0).toUpperCase()}
@@ -129,11 +137,9 @@ export function DashboardPage({
                     <div className="card-role">{agent.repoName ?? 'No repo'}</div>
                   </div>
                   <StatusPill agent={agent} />
-                  {runningSessionByAgentId.has(agent.id) && (
-                    <button type="button" className="btn-danger" onClick={() => handleStop(agent.id)}>
-                      Stop
-                    </button>
-                  )}
+                  <button type="button" className="btn-danger" onClick={() => handleStop(agent.id)}>
+                    Stop
+                  </button>
                 </div>
               ))}
             </div>
@@ -161,6 +167,7 @@ export function DashboardPage({
                     <div className="project-agent-name">{agent.name}</div>
                     <div className="card-role">{agent.repoName ?? 'No repo assigned'}</div>
                   </div>
+                  <StatusPill agent={agent} />
                   <button type="button" className="btn-secondary" onClick={() => onNavigate('agents')}>
                     Assign work
                   </button>
