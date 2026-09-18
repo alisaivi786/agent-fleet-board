@@ -73,6 +73,10 @@ These are genuinely unresolved. Do not guess an answer and start implementing; a
 
 ## Rough phasing (not committed, just a reasonable shape)
 
+**Phases 2a and 2b now have a concrete, step-by-step build plan (exact files, endpoints, and a
+definition of done per step) in [`docs/PHASE-2-BUILD-PLAN.md`](PHASE-2-BUILD-PLAN.md) — start
+there when actually implementing, not from the summary below.**
+
 - **Phase 2a — Repo registry, no launching yet.** Add a way to register repos through the UI
   (replacing hand-edited `appsettings.Local.json`) and assign an agent name to a repo *for
   display purposes only*. Still read-only. Low risk, directly extends v1.

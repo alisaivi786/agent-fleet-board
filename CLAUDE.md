@@ -84,15 +84,17 @@ make frontend    # http://localhost:5173 (separate terminal/session)
 
 ## Phase 2 — not built yet, deliberately parked
 
-**Full plan: [`docs/ROADMAP.md`](docs/ROADMAP.md).** Read it before touching anything beyond v1 —
-it has the target user stories, the architecture options for actually launching agent sessions,
-every open question that needs the user's input before code gets written, and a rough phasing.
+**Vision + open questions: [`docs/ROADMAP.md`](docs/ROADMAP.md). Concrete step-by-step build plan
+for the next two phases: [`docs/PHASE-2-BUILD-PLAN.md`](docs/PHASE-2-BUILD-PLAN.md).** Read the
+roadmap for *why* and the build plan for *what to actually do next* — it has exact files,
+endpoints, and a definition-of-done per phase, ready for a fresh session to execute top to bottom.
 
 Short version: the end goal is a UI where you can **create an agent, point it at any repo, and
 hand it a prompt**, with a backend service that drives a real Claude Code session against that
 repo — this dashboard's read-only view becomes one panel in a larger control plane, not the whole
 product. One decision already locked in: **agent-to-repo binding is assignable per task, not
-fixed** (no "Alice always does frontend").
+fixed** (no "Alice always does frontend"). The very next concrete step is
+`docs/PHASE-2-BUILD-PLAN.md`'s Phase 1 (repo registry) — start there.
 
 Do not start implementing Phase 2 without asking the user to confirm scope — `docs/ROADMAP.md` is
 context to resume the conversation from, not a spec to build from silently.
