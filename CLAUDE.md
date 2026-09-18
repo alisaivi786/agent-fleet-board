@@ -169,13 +169,14 @@ can reach this API can trigger a real coding session against any registered repo
 - Running processes are tracked **in-memory only** (`SessionRunner`'s `ConcurrentDictionary`). An
   API restart loses the ability to `Stop()` an in-flight session - its DB row and log file survive,
   but it'll never transition out of `Running` status on its own after that.
-- **This was never run end-to-end in the session that built it.** Starting the API to test it
-  autonomously was blocked by the harness's own safety classifier ("Create Unsafe Agents") once the
-  code could spawn `claude` subprocesses - by design, not a bug to work around. The build compiled
-  clean and the migration applied clean; the actual dispatch path (spawn → log capture → exit →
-  status update) needs a live test by a human before this is trusted. Do that before building
-  further on top of it.
-- No frontend UI for this yet - only the API exists. The existing "Prompt" button in
-  `AgentCard.tsx` still calls `prepare-prompt` (Phase 4, copy/paste), not `sessions` (Phase 2c, real
-  spawn). Wiring the UI to real dispatch is unstarted and should get an explicit human test of the
-  API first, given the point above.
+- **Neither the API nor the UI for this has ever been run end-to-end.** Starting the API to test
+  it autonomously was blocked by the harness's own safety classifier ("Create Unsafe Agents") once
+  the code could spawn `claude` subprocesses - by design, not a bug to work around. The build
+  compiled clean, the migration applied clean, and the frontend typechecks/lints/builds clean, but
+  the actual dispatch path (spawn → log capture → exit → status update, and the UI polling loop
+  that watches it) needs a live test by a human before any of this is trusted. **Do that before
+  building further on top of it, and before assuming the "Run" button in the UI works.**
+- `AgentCard.tsx` now has two toggles: "Prompt" (Phase 4, calls `prepare-prompt`, only ever formats
+  a copy/paste string) and "Run" (Phase 2c, opens `SessionPanel.tsx`, calls `sessions` - **actually
+  executes**, behind a `window.confirm`). Don't conflate the two when reading the UI code - they
+  hit different endpoints with very different blast radii.
