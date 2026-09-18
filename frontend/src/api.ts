@@ -1,4 +1,4 @@
-import type { AgentDefinition, AgentStatus, RepoDefinition } from './types';
+import type { AgentDefinition, AgentSession, AgentStatus, RepoDefinition } from './types';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5299';
 
@@ -51,4 +51,26 @@ export function deleteAgent(id: string): Promise<void> {
 
 export function preparePrompt(id: string, prompt: string): Promise<{ command: string }> {
   return request(`/api/agents/${id}/prepare-prompt`, { method: 'POST', body: JSON.stringify({ prompt }) });
+}
+
+// Real dispatch: this actually spawns a `claude` subprocess against the agent's assigned repo,
+// unlike preparePrompt above which only formats a string. See CLAUDE.md's security note.
+export function startSession(agentId: string, prompt: string): Promise<AgentSession> {
+  return request(`/api/agents/${agentId}/sessions`, { method: 'POST', body: JSON.stringify({ prompt }) });
+}
+
+export function fetchSessions(agentId: string, signal?: AbortSignal): Promise<AgentSession[]> {
+  return request(`/api/agents/${agentId}/sessions`, { signal });
+}
+
+export function fetchSession(id: string, signal?: AbortSignal): Promise<AgentSession> {
+  return request(`/api/sessions/${id}`, { signal });
+}
+
+export function fetchSessionLog(id: string, signal?: AbortSignal): Promise<{ log: string }> {
+  return request(`/api/sessions/${id}/log`, { signal });
+}
+
+export function stopSession(id: string): Promise<void> {
+  return request(`/api/sessions/${id}/stop`, { method: 'POST' });
 }

@@ -31,3 +31,19 @@ export interface AgentDefinition {
   role: string;
   assignedRepoId: string | null;
 }
+
+export type SessionStatus = 'Running' | 'Succeeded' | 'Failed' | 'Stopped';
+
+export interface AgentSession {
+  id: string;
+  agentId: string;
+  repoId: string;
+  repoPath: string;
+  prompt: string;
+  status: SessionStatus;
+  processId: number | null;
+  logPath: string;
+  startedAtUtc: string;
+  endedAtUtc: string | null;
+  exitCode: number | null;
+}

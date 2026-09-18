@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { AgentStatus } from '../types';
 import { avatarColor } from '../colors';
 import { preparePrompt } from '../api';
+import { SessionPanel } from './SessionPanel';
 
 function relativeTime(iso: string | null): string {
   if (!iso) return '—';
@@ -19,6 +20,7 @@ export function AgentCard({ agent }: { agent: AgentStatus }) {
   const initial = agent.name.charAt(0).toUpperCase();
 
   const [promptOpen, setPromptOpen] = useState(false);
+  const [runOpen, setRunOpen] = useState(false);
   const [prompt, setPrompt] = useState('');
   const [command, setCommand] = useState<string | null>(null);
   const [promptError, setPromptError] = useState<string | null>(null);
@@ -123,15 +125,26 @@ export function AgentCard({ agent }: { agent: AgentStatus }) {
         </div>
       )}
 
-      <button
-        type="button"
-        className="prompt-toggle"
-        onClick={() => setPromptOpen((open) => !open)}
-        disabled={!agent.repoId}
-        title={agent.repoId ? undefined : 'Assign a repo first'}
-      >
-        {promptOpen ? 'Cancel' : 'Prompt'}
-      </button>
+      <div className="card-actions">
+        <button
+          type="button"
+          className="prompt-toggle"
+          onClick={() => setPromptOpen((open) => !open)}
+          disabled={!agent.repoId}
+          title={agent.repoId ? undefined : 'Assign a repo first'}
+        >
+          {promptOpen ? 'Cancel' : 'Prompt'}
+        </button>
+        <button
+          type="button"
+          className="prompt-toggle run-toggle"
+          onClick={() => setRunOpen((open) => !open)}
+          disabled={!agent.repoId}
+          title={agent.repoId ? undefined : 'Assign a repo first'}
+        >
+          {runOpen ? 'Cancel' : 'Run'}
+        </button>
+      </div>
 
       {promptOpen && (
         <form className="prompt-box" onSubmit={handlePrepare}>
@@ -155,6 +168,8 @@ export function AgentCard({ agent }: { agent: AgentStatus }) {
           )}
         </form>
       )}
+
+      {runOpen && <SessionPanel agentId={agent.id} repoName={agent.repoName} />}
     </div>
   );
 }

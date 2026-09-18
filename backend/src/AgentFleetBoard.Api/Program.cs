@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using AgentFleetBoard.Api.Models;
 using AgentFleetBoard.Api.Services;
 using AgentFleetBoard.Domain;
@@ -11,6 +12,11 @@ builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, relo
 builder.Services.AddPersistence(builder.Configuration);
 builder.Services.AddSingleton<IGitStatusReader, GitStatusReader>();
 builder.Services.AddSingleton<ISessionRunner, SessionRunner>();
+
+// Without this, AgentSession.Status (a C# enum) serializes as a raw int - the frontend needs the
+// name ("Running"/"Succeeded"/...), not the ordinal.
+builder.Services.ConfigureHttpJsonOptions(options =>
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
 string sessionLogDirectory = Path.Combine(builder.Environment.ContentRootPath, "logs");
 
@@ -147,8 +153,9 @@ app.MapPost("/api/agents/{id:guid}/sessions", async (
 
     int processId = runner.Start(session.Id, repo.Path, request.Prompt, session.LogPath);
     await sessions.SetRunningAsync(session.Id, processId, cancellationToken);
+    session.ProcessId = processId;
 
-    return Results.Ok(new { session.Id, session.AgentId, session.RepoId, session.RepoPath, session.Prompt, session.StartedAtUtc, processId });
+    return Results.Ok(session);
 });
 
 app.MapGet("/api/agents/{id:guid}/sessions", async (Guid id, ISessionRegistry sessions, CancellationToken cancellationToken) =>
