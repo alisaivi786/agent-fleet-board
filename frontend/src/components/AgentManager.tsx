@@ -1,14 +1,23 @@
 import { useState } from 'react';
-import { assignAgent, createAgent, deleteAgent, unassignAgent } from '../api';
-import type { AgentStatus, RepoDefinition } from '../types';
+import {
+  assignAgent,
+  assignAgentProject,
+  createAgent,
+  deleteAgent,
+  unassignAgent,
+  unassignAgentProject,
+} from '../api';
+import type { AgentStatus, Project, RepoDefinition } from '../types';
 
 export function AgentManager({
   agents,
   repos,
+  projects,
   onChange,
 }: {
   agents: AgentStatus[];
   repos: RepoDefinition[];
+  projects: Project[];
   onChange: () => void;
 }) {
   const [name, setName] = useState('');
@@ -51,6 +60,20 @@ export function AgentManager({
     onChange();
   }
 
+  async function handleAssignProject(agentId: string, projectId: string) {
+    setError(null);
+    try {
+      if (projectId === '') {
+        await unassignAgentProject(agentId);
+      } else {
+        await assignAgentProject(agentId, projectId);
+      }
+      onChange();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update project assignment');
+    }
+  }
+
   return (
     <div className="manage-section">
       <p className="section-label">Agents</p>
@@ -63,6 +86,7 @@ export function AgentManager({
             <tr>
               <th>Name</th>
               <th>Role</th>
+              <th>Project</th>
               <th>Assigned repo</th>
               <th />
             </tr>
@@ -73,9 +97,21 @@ export function AgentManager({
                 <td>{agent.name}</td>
                 <td>{agent.role}</td>
                 <td>
+                  <select value={agent.projectId ?? ''} onChange={(e) => handleAssignProject(agent.id, e.target.value)}>
+                    <option value="">No project</option>
+                    {projects.map((project) => (
+                      <option value={project.id} key={project.id}>
+                        {project.name}
+                      </option>
+                    ))}
+                  </select>
+                </td>
+                <td>
                   <select
                     value={agent.repoId ?? ''}
                     onChange={(e) => handleAssign(agent.id, e.target.value)}
+                    disabled={!!agent.projectId}
+                    title={agent.projectId ? 'Bound to project repo - unassign the project first' : undefined}
                   >
                     <option value="">Unassigned</option>
                     {repos.map((repo) => (

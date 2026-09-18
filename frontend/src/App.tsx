@@ -1,15 +1,18 @@
 import { useCallback, useEffect, useState } from 'react';
-import { fetchAgents, fetchRepos } from './api';
-import type { AgentStatus, RepoDefinition } from './types';
+import { fetchAgents, fetchProjects, fetchRepos } from './api';
+import type { AgentStatus, Project, RepoDefinition } from './types';
+import { isIdle, isWorking } from './agentStatus';
 import { AgentCard } from './components/AgentCard';
 import { RepoManager } from './components/RepoManager';
 import { AgentManager } from './components/AgentManager';
+import { ProjectManager } from './components/ProjectManager';
+import { ProjectShowcase } from './components/ProjectShowcase';
 import { MoonIcon, PauseIcon, PlayIcon, SunIcon } from './icons';
 
 const POLL_OPTIONS_MS = [2000, 5000, 10000, 30000, 60000];
 const THEME_STORAGE_KEY = 'afb-theme';
 
-type Tab = 'roster' | 'manage';
+type Tab = 'roster' | 'projects' | 'manage';
 type StatusFilter = 'all' | 'idle' | 'working' | 'error';
 type Theme = 'light' | 'dark';
 
@@ -23,18 +26,11 @@ function initialTheme(): Theme {
   return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
 
-function isIdle(agent: AgentStatus): boolean {
-  return !agent.error && agent.isClean && agent.aheadOfBase === 0;
-}
-
-function isWorking(agent: AgentStatus): boolean {
-  return !agent.error && (!agent.isClean || agent.aheadOfBase > 0);
-}
-
 export default function App() {
   const [tab, setTab] = useState<Tab>('roster');
   const [agents, setAgents] = useState<AgentStatus[] | null>(null);
   const [repos, setRepos] = useState<RepoDefinition[] | null>(null);
+  const [projects, setProjects] = useState<Project[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
@@ -53,9 +49,14 @@ export default function App() {
 
   const refetch = useCallback(async (signal?: AbortSignal) => {
     try {
-      const [agentData, repoData] = await Promise.all([fetchAgents(signal), fetchRepos(signal)]);
+      const [agentData, repoData, projectData] = await Promise.all([
+        fetchAgents(signal),
+        fetchRepos(signal),
+        fetchProjects(signal),
+      ]);
       setAgents(agentData);
       setRepos(repoData);
+      setProjects(projectData);
       setError(null);
     } catch (err) {
       if (!(err instanceof DOMException && err.name === 'AbortError')) {
@@ -151,6 +152,9 @@ export default function App() {
         <button className={tab === 'roster' ? 'tab active' : 'tab'} onClick={() => setTab('roster')}>
           Roster
         </button>
+        <button className={tab === 'projects' ? 'tab active' : 'tab'} onClick={() => setTab('projects')}>
+          Projects
+        </button>
         <button className={tab === 'manage' ? 'tab active' : 'tab'} onClick={() => setTab('manage')}>
           Manage
         </button>
@@ -225,12 +229,19 @@ export default function App() {
             )}
           </>
         )
-      ) : !agents || !repos ? (
+      ) : tab === 'projects' ? (
+        !agents || !repos || !projects ? (
+          <p className="loading">Loading registry…</p>
+        ) : (
+          <ProjectShowcase projects={projects} agents={agents} repos={repos} />
+        )
+      ) : !agents || !repos || !projects ? (
         <p className="loading">Loading registry…</p>
       ) : (
         <>
           <RepoManager repos={repos} onChange={refetch} />
-          <AgentManager agents={agents} repos={repos} onChange={refetch} />
+          <ProjectManager projects={projects} repos={repos} onChange={refetch} />
+          <AgentManager agents={agents} repos={repos} projects={projects} onChange={refetch} />
         </>
       )}
     </div>

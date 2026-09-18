@@ -66,6 +66,20 @@ would justify them. Add layers when something concrete needs them, not preemptiv
   public repo (same rule as the old `appsettings.Local.json`). It was inserted directly into this
   machine's Postgres via `docker exec ... psql` after migrating; a fresh clone's DB starts empty
   and needs repos/agents registered through the API (see README.md).
+- **Projects (2026-09-18):** `003_CreateProjects.cs` adds a `projects` table (`id`, `name`, `repo_id`
+  — `repo_id` is `NOT NULL`, `ON DELETE CASCADE`, a project always has exactly one bound repo) and
+  an `agents.project_id` nullable FK (`ON DELETE SET NULL`). A project groups agents under one repo
+  so you can see "what's this codebase's fleet doing" at a glance, not just a flat agent list.
+  **Invariant enforced in `AgentRegistry`, not just the UI:** `AssignProjectAsync` always sets
+  `AssignedRepoId` to the project's `RepoId` in the same write, so an agent bound to a project can
+  never end up pointed at a different repo; conversely, the plain `AssignAsync` (direct repo pick)
+  always clears `ProjectId` — picking a repo by hand means leaving the project. `GET /api/agents`
+  joins in `ProjectName` for display; the frontend's Projects tab (`ProjectShowcase.tsx`) is the
+  "showcase" screen: one card per project with its bound repo and the agents currently in it, plus
+  an "Unassigned agents" strip for agents with no project. `ProjectManager.tsx` (Manage tab)
+  creates/deletes projects; `AgentManager.tsx`'s agent table and `AgentCard.tsx`'s inline repo
+  select both disable manual repo (re)assignment while a project is set, with a tooltip pointing at
+  unassigning the project first.
 
 **Api** (`backend/src/AgentFleetBoard.Api/Program.cs`):
 - `GitStatusReader` (unchanged from before this restructuring) shells out to the system `git`

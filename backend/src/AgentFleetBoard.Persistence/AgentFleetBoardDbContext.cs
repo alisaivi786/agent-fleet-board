@@ -11,12 +11,24 @@ public sealed class AgentFleetBoardDbContext(DbContextOptions<AgentFleetBoardDbC
 
     public DbSet<AgentSession> Sessions => Set<AgentSession>();
 
+    public DbSet<Project> Projects => Set<Project>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<RepoDefinition>(repo =>
         {
             repo.ToTable("repos");
             repo.HasKey(r => r.Id);
+        });
+
+        modelBuilder.Entity<Project>(project =>
+        {
+            project.ToTable("projects");
+            project.HasKey(p => p.Id);
+            project.HasOne<RepoDefinition>()
+                .WithMany()
+                .HasForeignKey(p => p.RepoId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<AgentDefinition>(agent =>
@@ -26,6 +38,10 @@ public sealed class AgentFleetBoardDbContext(DbContextOptions<AgentFleetBoardDbC
             agent.HasOne<RepoDefinition>()
                 .WithMany()
                 .HasForeignKey(a => a.AssignedRepoId)
+                .OnDelete(DeleteBehavior.SetNull);
+            agent.HasOne<Project>()
+                .WithMany()
+                .HasForeignKey(a => a.ProjectId)
                 .OnDelete(DeleteBehavior.SetNull);
         });
 

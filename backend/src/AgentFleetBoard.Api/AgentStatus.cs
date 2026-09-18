@@ -17,4 +17,6 @@ public sealed record AgentStatus(
     DateTimeOffset? LastCommitDate,
     int AheadOfBase,
     int BehindBase,
-    string? Error);
+    string? Error,
+    Guid? ProjectId = null,
+    string? ProjectName = null);

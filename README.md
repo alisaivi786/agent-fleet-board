@@ -10,7 +10,7 @@ background coding agent, a regular feature branch, a teammate's clone — anythi
 ## Stack
 
 - `backend/` — ASP.NET Core (.NET 10), split into four projects under `backend/src/`:
-  `AgentFleetBoard.Domain` (the `RepoDefinition`/`AgentDefinition` entities), `AgentFleetBoard.Persistence`
+  `AgentFleetBoard.Domain` (the `RepoDefinition`/`AgentDefinition`/`Project` entities), `AgentFleetBoard.Persistence`
   (EF Core + Npgsql, backed by Postgres), `AgentFleetBoard.Migrations` (FluentMigrator, run
   separately from the API), and `AgentFleetBoard.Api` (the minimal API + Swagger). Shells out to
   the local `git` binary against registry-resolved paths only (never a client-supplied path) and
@@ -64,6 +64,14 @@ clears an assignment without deleting the agent. `POST /api/agents/{id}/prepare-
 `{"prompt": "..."}`) returns a ready-to-run `{"command": "cd \"...\" && claude \"...\""}` for an
 assigned agent — it only formats the string, nothing gets executed server-side. In the UI, this is
 the "Prompt" button on each agent card in the Roster tab.
+
+**Projects** group agents under a single bound repo: `POST /api/projects` (body `{"name": "...",
+"repoId": "..."}`) creates one, `GET /api/projects` lists them, `DELETE /api/projects/{id}` removes
+one. `POST /api/agents/{id}/assign-project` (body `{"projectId": "..."}`) binds an agent to a
+project and always sets its repo to that project's repo in the same write — an agent bound to a
+project can't be pointed at a different repo without unassigning the project first
+(`POST /api/agents/{id}/unassign-project`). The Projects tab in the UI shows one card per project
+with its agents, plus an "Unassigned agents" section.
 
 **4. Run the frontend:**
 

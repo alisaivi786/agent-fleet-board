@@ -16,6 +16,14 @@ export interface AgentStatus {
   aheadOfBase: number;
   behindBase: number;
   error: string | null;
+  projectId: string | null;
+  projectName: string | null;
+}
+
+export interface Project {
+  id: string;
+  name: string;
+  repoId: string;
 }
 
 export interface RepoDefinition {
@@ -30,6 +38,7 @@ export interface AgentDefinition {
   name: string;
   role: string;
   assignedRepoId: string | null;
+  projectId: string | null;
 }
 
 export type SessionStatus = 'Running' | 'Succeeded' | 'Failed' | 'Stopped';

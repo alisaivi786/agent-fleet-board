@@ -36,7 +36,10 @@ public sealed class AgentRegistry(AgentFleetBoardDbContext db) : IAgentRegistry
             return null;
         }
 
+        // Direct repo assignment always wins over a project binding - an agent can't be "bound to
+        // project X's repo" while actually pointed at a different repo picked here.
         agent.AssignedRepoId = repoId;
+        agent.ProjectId = null;
         await db.SaveChangesAsync(cancellationToken);
         return agent;
     }
@@ -50,6 +53,39 @@ public sealed class AgentRegistry(AgentFleetBoardDbContext db) : IAgentRegistry
         }
 
         agent.AssignedRepoId = null;
+        await db.SaveChangesAsync(cancellationToken);
+        return agent;
+    }
+
+    public async Task<AgentDefinition?> AssignProjectAsync(Guid agentId, Guid projectId, CancellationToken cancellationToken)
+    {
+        Project? project = await db.Projects.AsNoTracking().FirstOrDefaultAsync(p => p.Id == projectId, cancellationToken);
+        if (project is null)
+        {
+            return null;
+        }
+
+        AgentDefinition? agent = await db.Agents.FirstOrDefaultAsync(a => a.Id == agentId, cancellationToken);
+        if (agent is null)
+        {
+            return null;
+        }
+
+        agent.ProjectId = projectId;
+        agent.AssignedRepoId = project.RepoId;
+        await db.SaveChangesAsync(cancellationToken);
+        return agent;
+    }
+
+    public async Task<AgentDefinition?> UnassignProjectAsync(Guid agentId, CancellationToken cancellationToken)
+    {
+        AgentDefinition? agent = await db.Agents.FirstOrDefaultAsync(a => a.Id == agentId, cancellationToken);
+        if (agent is null)
+        {
+            return null;
+        }
+
+        agent.ProjectId = null;
         await db.SaveChangesAsync(cancellationToken);
         return agent;
     }

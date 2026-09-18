@@ -3,6 +3,7 @@ import type { AgentStatus, RepoDefinition } from '../types';
 import { avatarColor } from '../colors';
 import { assignAgent, unassignAgent } from '../api';
 import { SessionPanel } from './SessionPanel';
+import { StatusPill } from './StatusPill';
 
 function relativeTime(iso: string | null): string {
   if (!iso) return '—';
@@ -24,7 +25,6 @@ export function AgentCard({
   repos: RepoDefinition[];
   onChange: () => void;
 }) {
-  const working = !agent.isClean || agent.aheadOfBase > 0;
   const initial = agent.name.charAt(0).toUpperCase();
 
   const [workOpen, setWorkOpen] = useState(false);
@@ -58,27 +58,23 @@ export function AgentCard({
           <div className="card-name">{agent.name}</div>
           <div className="card-role">{agent.role}</div>
         </div>
-        {agent.error ? (
-          <span className="pill warn">
-            <span className="dot" />
-            Unreachable
-          </span>
-        ) : working ? (
-          <span className="pill working">
-            <span className="dot" />
-            Working
-          </span>
-        ) : (
-          <span className="pill idle">
-            <span className="dot" />
-            Idle
-          </span>
-        )}
+        <StatusPill agent={agent} />
       </div>
+
+      {agent.projectName && (
+        <div className="project-chip-row">
+          <span className="project-chip">{agent.projectName}</span>
+        </div>
+      )}
 
       <div className="assign-row">
         <span className="k">Repo</span>
-        <select value={agent.repoId ?? ''} onChange={(e) => handleReassign(e.target.value)} disabled={reassignBusy}>
+        <select
+          value={agent.repoId ?? ''}
+          onChange={(e) => handleReassign(e.target.value)}
+          disabled={reassignBusy || !!agent.projectId}
+          title={agent.projectId ? `Bound to project "${agent.projectName}" - manage in the Manage tab` : undefined}
+        >
           <option value="">Unassigned</option>
           {repos.map((repo) => (
             <option value={repo.id} key={repo.id}>

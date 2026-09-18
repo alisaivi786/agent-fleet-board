@@ -1,4 +1,4 @@
-import type { AgentDefinition, AgentSession, AgentStatus, RepoDefinition } from './types';
+import type { AgentDefinition, AgentSession, AgentStatus, Project, RepoDefinition } from './types';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5390';
 
@@ -47,6 +47,26 @@ export function unassignAgent(id: string): Promise<AgentDefinition> {
 
 export function deleteAgent(id: string): Promise<void> {
   return request(`/api/agents/${id}`, { method: 'DELETE' });
+}
+
+export function fetchProjects(signal?: AbortSignal): Promise<Project[]> {
+  return request('/api/projects', { signal });
+}
+
+export function createProject(input: { name: string; repoId: string }): Promise<Project> {
+  return request('/api/projects', { method: 'POST', body: JSON.stringify(input) });
+}
+
+export function deleteProject(id: string): Promise<void> {
+  return request(`/api/projects/${id}`, { method: 'DELETE' });
+}
+
+export function assignAgentProject(agentId: string, projectId: string): Promise<AgentDefinition> {
+  return request(`/api/agents/${agentId}/assign-project`, { method: 'POST', body: JSON.stringify({ projectId }) });
+}
+
+export function unassignAgentProject(agentId: string): Promise<AgentDefinition> {
+  return request(`/api/agents/${agentId}/unassign-project`, { method: 'POST' });
 }
 
 export function preparePrompt(id: string, prompt: string): Promise<{ command: string }> {

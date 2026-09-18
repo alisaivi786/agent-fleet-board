@@ -17,6 +17,7 @@ public static class PersistenceServiceCollectionExtensions
         services.AddScoped<IRepoRegistry, RepoRegistry>();
         services.AddScoped<IAgentRegistry, AgentRegistry>();
         services.AddScoped<ISessionRegistry, SessionRegistry>();
+        services.AddScoped<IProjectRegistry, ProjectRegistry>();
 
         return services;
     }

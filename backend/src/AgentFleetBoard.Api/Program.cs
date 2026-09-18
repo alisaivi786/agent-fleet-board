@@ -53,19 +53,26 @@ app.MapDelete("/api/repos/{id:guid}", async (Guid id, IRepoRegistry repos, Cance
     await repos.RemoveAsync(id, cancellationToken) ? Results.NoContent() : Results.NotFound());
 
 app.MapGet("/api/agents", async (
-    IAgentRegistry agents, IRepoRegistry repos, IGitStatusReader reader, CancellationToken cancellationToken) =>
+    IAgentRegistry agents, IRepoRegistry repos, IProjectRegistry projects, IGitStatusReader reader,
+    CancellationToken cancellationToken) =>
 {
     IReadOnlyList<AgentDefinition> agentDefinitions = await agents.GetAllAsync(cancellationToken);
     IReadOnlyList<RepoDefinition> repoDefinitions = await repos.GetAllAsync(cancellationToken);
+    IReadOnlyList<Project> projectDefinitions = await projects.GetAllAsync(cancellationToken);
     Dictionary<Guid, RepoDefinition> reposById = repoDefinitions.ToDictionary(r => r.Id);
+    Dictionary<Guid, Project> projectsById = projectDefinitions.ToDictionary(p => p.Id);
 
     // reader.ReadAsync shells out to git and doesn't touch the DbContext, so running these
-    // concurrently is safe - unlike the repo lookups above, which must happen on one shared,
-    // non-thread-safe DbContext instance before this point, not inside the parallel Select below.
+    // concurrently is safe - unlike the repo/project lookups above, which must happen on one
+    // shared, non-thread-safe DbContext instance before this point, not inside the parallel
+    // Select below.
     var statuses = await Task.WhenAll(agentDefinitions.Select(async agent =>
     {
         RepoDefinition? repo = agent.AssignedRepoId is { } repoId && reposById.TryGetValue(repoId, out RepoDefinition? found)
             ? found
+            : null;
+        string? projectName = agent.ProjectId is { } projectId && projectsById.TryGetValue(projectId, out Project? project)
+            ? project.Name
             : null;
 
         if (repo is null)
@@ -73,11 +80,12 @@ app.MapGet("/api/agents", async (
             return new AgentStatus(
                 agent.Id, agent.Name, agent.Role, null, null, null, null,
                 PathExists: false, IsGitRepo: false, IsClean: true, [],
-                null, null, null, 0, 0, "No repo assigned.");
+                null, null, null, 0, 0, "No repo assigned.", agent.ProjectId, projectName);
         }
 
-        return await reader.ReadAsync(
+        AgentStatus status = await reader.ReadAsync(
             agent.Id, agent.Name, agent.Role, repo.Id, repo.Name, repo.Path, repo.BaseBranch, cancellationToken);
+        return status with { ProjectId = agent.ProjectId, ProjectName = projectName };
     }));
     return Results.Ok(statuses);
 });
@@ -100,6 +108,31 @@ app.MapPost("/api/agents/{id:guid}/unassign", async (Guid id, IAgentRegistry age
 
 app.MapDelete("/api/agents/{id:guid}", async (Guid id, IAgentRegistry agents, CancellationToken cancellationToken) =>
     await agents.RemoveAsync(id, cancellationToken) ? Results.NoContent() : Results.NotFound());
+
+app.MapPost("/api/agents/{id:guid}/assign-project", async (
+    Guid id, AssignAgentProjectRequest request, IAgentRegistry agents, CancellationToken cancellationToken) =>
+{
+    AgentDefinition? updated = await agents.AssignProjectAsync(id, request.ProjectId, cancellationToken);
+    return updated is null ? Results.BadRequest(new { error = "Unknown agent or project id." }) : Results.Ok(updated);
+});
+
+app.MapPost("/api/agents/{id:guid}/unassign-project", async (Guid id, IAgentRegistry agents, CancellationToken cancellationToken) =>
+{
+    AgentDefinition? updated = await agents.UnassignProjectAsync(id, cancellationToken);
+    return updated is null ? Results.NotFound() : Results.Ok(updated);
+});
+
+app.MapGet("/api/projects", async (IProjectRegistry projects, CancellationToken cancellationToken) =>
+    Results.Ok(await projects.GetAllAsync(cancellationToken)));
+
+app.MapPost("/api/projects", async (CreateProjectRequest request, IProjectRegistry projects, CancellationToken cancellationToken) =>
+{
+    Project? project = await projects.CreateAsync(request.Name, request.RepoId, cancellationToken);
+    return project is null ? Results.BadRequest(new { error = "Unknown repo id." }) : Results.Ok(project);
+});
+
+app.MapDelete("/api/projects/{id:guid}", async (Guid id, IProjectRegistry projects, CancellationToken cancellationToken) =>
+    await projects.RemoveAsync(id, cancellationToken) ? Results.NoContent() : Results.NotFound());
 
 // Phase 4 (manual-launch bridge): formats a ready-to-run CLI command from the agent's
 // registry-resolved repo path - never executes anything itself. The operator copies this into
@@ -206,5 +239,9 @@ internal sealed record CreateAgentRequest(string Name, string Role);
 internal sealed record AssignAgentRequest(Guid RepoId);
 
 internal sealed record PreparePromptRequest(string Prompt);
+
+internal sealed record CreateProjectRequest(string Name, Guid RepoId);
+
+internal sealed record AssignAgentProjectRequest(Guid ProjectId);
 
 internal sealed record StartSessionRequest(string Prompt);
