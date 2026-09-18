@@ -1,0 +1,18 @@
+{
+  "AgentFleet": {
+    "Agents": [
+      {
+        "Name": "Alice",
+        "Role": "Senior Software Engineer",
+        "RepoPath": "C:\\path\\to\\some-repo\\.claude\\worktrees\\alice",
+        "BaseBranch": "develop"
+      },
+      {
+        "Name": "Bob",
+        "Role": "Senior Software Engineer",
+        "RepoPath": "C:\\path\\to\\some-repo\\.claude\\worktrees\\bob",
+        "BaseBranch": "develop"
+      }
+    ]
+  }
+}

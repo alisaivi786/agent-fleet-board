@@ -1,0 +1,15 @@
+# .NET
+backend/bin/
+backend/obj/
+backend/appsettings.Local.json
+
+# Node (frontend has its own .gitignore too, this covers root-level runs)
+**/node_modules/
+**/dist/
+
+# Editors / OS
+.vs/
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
