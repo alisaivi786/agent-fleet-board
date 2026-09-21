@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react';
 import type { AgentSession, AgentStatus, RepoDefinition } from '../types';
 import { avatarColor } from '../colors';
 import { assignAgent, fetchSessions, forceStopSession, unassignAgent } from '../api';
+import { isWorking } from '../agentStatus';
 import { SessionPanel } from './SessionPanel';
 import { StatusPill } from './StatusPill';
 import { AgentHistoryModal } from './AgentHistoryModal';
 import { CustomSelect } from './CustomSelect';
+import { ConfirmDialog } from './ConfirmDialog';
 
 function relativeTime(iso: string | null): string {
   if (!iso) return '-';
@@ -35,6 +37,7 @@ export function AgentCard({
   const [reassignError, setReassignError] = useState<string | null>(null);
   const [runningSession, setRunningSession] = useState<AgentSession | null>(null);
   const [stopBusy, setStopBusy] = useState(false);
+  const [freeConfirmOpen, setFreeConfirmOpen] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -71,6 +74,11 @@ export function AgentCard({
     } finally {
       setReassignBusy(false);
     }
+  }
+
+  async function handleFreeAgent() {
+    setFreeConfirmOpen(false);
+    await handleReassign('');
   }
 
   async function handleStopRunningSession() {
@@ -115,6 +123,30 @@ export function AgentCard({
             Stop
           </button>
         </div>
+      )}
+
+      {!runningSession && agent.repoId && isWorking(agent) && (
+        <div className="running-session-banner" title="This just reflects git status, not a live process - see the pill above.">
+          <span className="diverged-banner-text">Diverged - ahead of base or has uncommitted changes</span>
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() => setFreeConfirmOpen(true)}
+            disabled={reassignBusy}
+          >
+            Free agent
+          </button>
+        </div>
+      )}
+
+      {freeConfirmOpen && (
+        <ConfirmDialog
+          title="Free this agent?"
+          message={`This unassigns ${agent.name} from ${agent.repoName ?? 'its repo'} so it stops being tracked here. It does NOT touch git - your branch, commits, and uncommitted files stay exactly as they are on disk.`}
+          confirmLabel="Free agent"
+          onConfirm={handleFreeAgent}
+          onCancel={() => setFreeConfirmOpen(false)}
+        />
       )}
 
       <div className="assign-row">

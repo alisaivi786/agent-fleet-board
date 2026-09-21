@@ -893,6 +893,11 @@ h1 {
   margin-bottom: 12px;
 }
 
+.diverged-banner-text {
+  font-size: 0.78rem;
+  color: var(--ink-dim);
+}
+
 .project-chip {
   display: inline-flex;
   align-items: center;
