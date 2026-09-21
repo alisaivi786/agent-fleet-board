@@ -59,6 +59,13 @@ export function unassignAgent(id: string): Promise<AgentDefinition> {
   return request(`/api/agents/${id}/unassign`, { method: 'POST' });
 }
 
+// Marks the agent's current Diverged state (ahead of base, already committed) as reviewed and
+// accepted, without touching its repo assignment. The API re-checks git state itself and rejects
+// this if the working tree isn't clean - any new commit or new dirty file re-arms Diverged again.
+export function acknowledgeDivergence(id: string): Promise<AgentDefinition> {
+  return request(`/api/agents/${id}/acknowledge-divergence`, { method: 'POST' });
+}
+
 export function deleteAgent(id: string): Promise<void> {
   return request(`/api/agents/${id}`, { method: 'DELETE' });
 }

@@ -14,6 +14,9 @@ public sealed class AgentRegistry(AgentFleetBoardDbContext db) : IAgentRegistry
     public async Task<IReadOnlyList<AgentDefinition>> GetAllAsync(CancellationToken cancellationToken)
         => await db.Agents.AsNoTracking().OrderBy(a => a.Name).ToListAsync(cancellationToken);
 
+    public async Task<AgentDefinition?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
+        => await db.Agents.AsNoTracking().FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
+
     public async Task<AgentDefinition> CreateAsync(string name, string role, CancellationToken cancellationToken)
     {
         var agent = new AgentDefinition { Id = Guid.NewGuid(), Name = name, Role = role, AssignedRepoId = null };
@@ -36,7 +39,10 @@ public sealed class AgentRegistry(AgentFleetBoardDbContext db) : IAgentRegistry
             return null;
         }
 
+        // A repo change invalidates any prior divergence acknowledgement - it was scoped to the
+        // old repo's commit history, which is meaningless once the agent points somewhere else.
         agent.AssignedRepoId = repoId;
+        agent.DivergedAckCommitHash = null;
         await db.SaveChangesAsync(cancellationToken);
         return agent;
     }
@@ -50,6 +56,7 @@ public sealed class AgentRegistry(AgentFleetBoardDbContext db) : IAgentRegistry
         }
 
         agent.AssignedRepoId = null;
+        agent.DivergedAckCommitHash = null;
         await db.SaveChangesAsync(cancellationToken);
         return agent;
     }
@@ -86,6 +93,19 @@ public sealed class AgentRegistry(AgentFleetBoardDbContext db) : IAgentRegistry
         }
 
         agent.ProjectId = null;
+        await db.SaveChangesAsync(cancellationToken);
+        return agent;
+    }
+
+    public async Task<AgentDefinition?> AcknowledgeDivergenceAsync(Guid agentId, string commitHash, CancellationToken cancellationToken)
+    {
+        AgentDefinition? agent = await db.Agents.FirstOrDefaultAsync(a => a.Id == agentId, cancellationToken);
+        if (agent is null)
+        {
+            return null;
+        }
+
+        agent.DivergedAckCommitHash = commitHash;
         await db.SaveChangesAsync(cancellationToken);
         return agent;
     }

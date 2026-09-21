@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { AgentSession, AgentStatus, RepoDefinition } from '../types';
 import { avatarColor } from '../colors';
-import { assignAgent, fetchSessions, forceStopSession, unassignAgent } from '../api';
+import { acknowledgeDivergence, assignAgent, fetchSessions, forceStopSession, unassignAgent } from '../api';
 import { isWorking } from '../agentStatus';
 import { SessionPanel } from './SessionPanel';
 import { StatusPill } from './StatusPill';
@@ -38,6 +38,8 @@ export function AgentCard({
   const [runningSession, setRunningSession] = useState<AgentSession | null>(null);
   const [stopBusy, setStopBusy] = useState(false);
   const [freeConfirmOpen, setFreeConfirmOpen] = useState(false);
+  const [ackBusy, setAckBusy] = useState(false);
+  const [ackError, setAckError] = useState<string | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -78,7 +80,16 @@ export function AgentCard({
 
   async function handleFreeAgent() {
     setFreeConfirmOpen(false);
-    await handleReassign('');
+    setAckBusy(true);
+    setAckError(null);
+    try {
+      await acknowledgeDivergence(agent.id);
+      onChange();
+    } catch (err) {
+      setAckError(err instanceof Error ? err.message : 'Failed to free this agent');
+    } finally {
+      setAckBusy(false);
+    }
   }
 
   async function handleStopRunningSession() {
@@ -132,17 +143,19 @@ export function AgentCard({
             type="button"
             className="btn-secondary"
             onClick={() => setFreeConfirmOpen(true)}
-            disabled={reassignBusy}
+            disabled={ackBusy || !agent.isClean}
+            title={agent.isClean ? undefined : 'Commit or discard the uncommitted changes first'}
           >
             Free agent
           </button>
         </div>
       )}
+      {ackError && <div className="error-banner">{ackError}</div>}
 
       {freeConfirmOpen && (
         <ConfirmDialog
           title="Free this agent?"
-          message={`This unassigns ${agent.name} from ${agent.repoName ?? 'its repo'} so it stops being tracked here. It does NOT touch git - your branch, commits, and uncommitted files stay exactly as they are on disk.`}
+          message={`This marks ${agent.name}'s current state in ${agent.repoName ?? 'its repo'} as reviewed - the Diverged pill clears without touching git or the repo assignment. If a new commit lands or the tree gets dirty again, it'll show as Diverged again automatically.`}
           confirmLabel="Free agent"
           onConfirm={handleFreeAgent}
           onCancel={() => setFreeConfirmOpen(false)}

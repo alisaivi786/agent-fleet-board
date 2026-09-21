@@ -18,6 +18,8 @@ export interface AgentStatus {
   error: string | null;
   projectId: string | null;
   projectName: string | null;
+  /** True only while nothing has changed since the last acknowledge-divergence call - see agentStatus.ts. */
+  divergenceAcknowledged: boolean;
 }
 
 export interface Project {

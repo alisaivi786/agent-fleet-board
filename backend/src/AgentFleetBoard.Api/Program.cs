@@ -146,7 +146,10 @@ app.MapGet("/api/agents", async (
 
         AgentStatus status = await reader.ReadAsync(
             agent.Id, agent.Name, agent.Role, repo.Id, repo.Name, repo.Path, repo.BaseBranch, cancellationToken);
-        return status with { ProjectId = agent.ProjectId, ProjectName = projectName };
+        bool divergenceAcknowledged = agent.DivergedAckCommitHash is not null
+            && status.IsClean
+            && agent.DivergedAckCommitHash == status.LastCommitHash;
+        return status with { ProjectId = agent.ProjectId, ProjectName = projectName, DivergenceAcknowledged = divergenceAcknowledged };
     }));
     return Results.Ok(statuses);
 });
@@ -169,6 +172,39 @@ app.MapPost("/api/agents/{id:guid}/unassign", async (Guid id, IAgentRegistry age
 
 app.MapDelete("/api/agents/{id:guid}", async (Guid id, IAgentRegistry agents, CancellationToken cancellationToken) =>
     await agents.RemoveAsync(id, cancellationToken) ? Results.NoContent() : Results.NotFound());
+
+app.MapPost("/api/agents/{id:guid}/acknowledge-divergence", async (
+    Guid id, IAgentRegistry agents, IRepoRegistry repos, IGitStatusReader reader, CancellationToken cancellationToken) =>
+{
+    AgentDefinition? agent = await agents.GetByIdAsync(id, cancellationToken);
+    if (agent is null)
+    {
+        return Results.NotFound();
+    }
+
+    if (agent.AssignedRepoId is not { } repoId)
+    {
+        return Results.BadRequest(new { error = "Agent has no assigned repo to acknowledge." });
+    }
+
+    RepoDefinition? repo = await repos.GetByIdAsync(repoId, cancellationToken);
+    if (repo is null)
+    {
+        return Results.BadRequest(new { error = "Assigned repo no longer exists." });
+    }
+
+    // Re-reads git state itself rather than trusting whatever the client last polled, so the
+    // acknowledged commit hash always reflects what's actually on disk right now.
+    AgentStatus current = await reader.ReadAsync(
+        agent.Id, agent.Name, agent.Role, repo.Id, repo.Name, repo.Path, repo.BaseBranch, cancellationToken);
+    if (!current.IsClean)
+    {
+        return Results.BadRequest(new { error = "Working tree still has uncommitted changes - commit or discard them first." });
+    }
+
+    AgentDefinition? updated = await agents.AcknowledgeDivergenceAsync(id, current.LastCommitHash ?? "", cancellationToken);
+    return updated is null ? Results.NotFound() : Results.Ok(updated);
+});
 
 app.MapPost("/api/agents/{id:guid}/assign-project", async (
     Guid id, AssignAgentProjectRequest request, IAgentRegistry agents, CancellationToken cancellationToken) =>
